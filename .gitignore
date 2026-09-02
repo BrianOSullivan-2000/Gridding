@@ -1,0 +1,42 @@
+# R session files
+.Rhistory
+.RData
+.Ruserdata
+
+# RStudio
+.Rproj.user/
+
+# Package build files
+*.tar.gz
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+
+# Python (if applicable)
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+
+Figures/
+
+Data/
+
+Results/
+
+Report/
+
+examples/
+
+validations/
