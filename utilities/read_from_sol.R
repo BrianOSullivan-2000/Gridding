@@ -33,11 +33,12 @@ read_from_sol <- function(sql_query_string,
       password,"\\\"); ",
       "df <- sqlQuery(ch, \\\"", sql_query_string, "\\\"); ",
       "odbcClose(ch); ",
-      "write.csv(df, file = '', row.names = TRUE, quote = TRUE)"
+      "write.csv(df, file = '', row.names = FALSE, quote = TRUE)"
     )
     sol_command <- paste0(
       "ssh ", username, "@sol3 \"Rscript -e '", r_command, "'\""
     )
+    print(sol_command)
     
     csv_text <- system(sol_command, intern = TRUE)
     df <- read_csv(paste(csv_text, collapse = "\n"))
