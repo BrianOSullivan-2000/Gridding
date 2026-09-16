@@ -311,6 +311,82 @@ NI_rainfall <- NI_df |>
 
 # %%
 
+## We're going to drop stations that are too close (< 200m)
+## Given we're testing gridding methods and most grid points
+## are not right next to other stations, this should make
+## our results more realistic
+
+## First we'll also need data on the station type
+## so we know which station to prioritise if there is a conflict
+sql_query <- paste0(
+    "select stno, stationtype ",
+    "from dba.ymd_stations"
+)
+station_types <- read_from_sol(sql_query)
+station_types <- station_types |>
+    filter(stno %in% c(ROI_rainfall$stno, NI_rainfall$stno))
+
+## Function for checking nearby stations
+remove_close_stations <- function(data, threshold = 200) {
+    stnos <- unique(data$stno)
+    coords <- station_geodata |>
+        filter(stno %in% stnos) |>
+        dplyr::select(stno, east, north) |>
+        distinct(stno, .keep_all = TRUE)
+
+    ## Prioriy order: Synop -> TUSCON -> Climate -> CAMP -> Manual
+    coords <- coords |>
+        left_join(
+            data |>
+                select(stno, stationtype) |>
+                distinct(),
+            by = "stno"
+        ) |>
+        mutate(
+            priority = case_when(
+                stationtype == "tucson" ~ 1,
+                stationtype == "climate_manual" ~ 2,
+                stationtype == "me_automatic_climate_aws" ~ 3,
+                stationtype == "aviation_aws" ~ 4,
+                stationtype == "rainfall_manual" ~ 5,
+                TRUE ~ 6
+            )
+        ) |>
+        arrange(priority, stno)
+
+    ## Get distance matrix and find close pairs
+    dist_matrix <- sqrt(
+        outer(coords$east, coords$east, "-")^2 +
+            outer(coords$north, coords$north, "-")^2
+    )
+    close_pairs <- which(
+        upper.tri(dist_matrix) & dist_matrix < threshold,
+        arr.ind = TRUE
+    )
+
+    ## Drop worse station from each pair
+    removed_stnos <- c()
+    for (k in seq_len(nrow(close_pairs))) {
+        i <- close_pairs[k, 1]
+        j <- close_pairs[k, 2]
+        stno1 <- coords$stno[i]
+        stno2 <- coords$stno[j]
+        p1 <- coords$priority[coords$stno == stno1]
+        p2 <- coords$priority[coords$stno == stno2]
+
+        if (p1 < p2) {
+            removed_stnos <- c(removed_stnos, stno2)
+        } else if (p2 > p1) {
+            removed_stnos <- c(removed_stnos, stno1)
+        } else {
+            removed_stnos <- c(removed_stnos, stno2)
+        }
+    }
+    removed_stnos
+}
+
+# %%
+
 ## Randomly sample 200 days
 set.seed(222)
 sample_200_days <- sample(
@@ -342,10 +418,21 @@ test_df  <- list()
 ## Loop through each day
 for (i in seq_along(sample_data)) {
 
-    ## Available stations on current day
-    stations <- unique(sample_data[[i]]$stno)
+    ## Drop stations that are too close together
+    removed_stations <- remove_close_stations(
+        sample_data[[i]] |>
+            left_join(station_types, by = "stno"),
+        threshold = 200
+    )
+    sample_data[[i]] <- sample_data[[i]] |>
+        filter(!stno %in% removed_stations)
 
-    # Randomly select 20% stations and assign to train/test
+    ## Available stations on current day
+    stations <- sample_data[[i]] |>
+        filter(ind == 0 | is.na(ind)) |>
+        pull(stno)
+
+    ## Randomly select 20% stations and assign to train/test
     test_stations <- sort(
         sample(
             stations,
@@ -357,7 +444,19 @@ for (i in seq_along(sample_data)) {
         filter(!stno %in% test_stations)
     test_df[[i]] <- sample_data[[i]] |>
         filter(stno %in% test_stations)
+
 }
 
 test_df <- bind_rows(test_df)
 train_df <- bind_rows(train_df)
+
+# write.csv(
+#     train_df,
+#     "Data/Daily_Rainfall/folds/train_split_2016-2025.csv",
+#     row.names = FALSE
+# )
+# write.csv(
+#     test_df,
+#     "Data/Daily_Rainfall/folds/test_split_2016-2025.csv",
+#     row.names = FALSE
+# )
