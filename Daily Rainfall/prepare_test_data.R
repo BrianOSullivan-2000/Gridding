@@ -3,7 +3,7 @@
 ## This file puts together 10 year of daily rain (2016-2025), randomly
 ## samples 200 days, and puts together train and test folds
 
-## Data is collected from Met Éireann's network (dba.daily_rain)
+## Data is collected from Met Éireann's network (dba.daily_rain_clean)
 ## and NI data from the UK Met Office (CEDA Archive)
 
 # %%
@@ -290,7 +290,7 @@ ROI_rainfall <- ROI_rainfall |>
     dplyr::select(stno, year, month, day, rain, ind)
 # write.csv(
 #     ROI_rainfall,
-#     "Data/Daily_Rainfall/daily_rain_ROI.csv",
+#     "Data/Daily_Rainfall/daily_rain_ROI_2016-2025.csv",
 #     row.names = FALSE
 # )
 
@@ -299,13 +299,13 @@ NI_rainfall <- NI_df |>
     dplyr::select(stno, year, month, day, rain, ind)
 # write.csv(
 #     NI_rainfall,
-#     "Data/Daily_Rainfall/daily_rain_NI.csv",
+#     "Data/Daily_Rainfall/daily_rain_NI_2016-2025.csv",
 #     row.names = FALSE
 # )
 
 # write.csv(
 #     bind_rows(ROI_rainfall, NI_rainfall),
-#     "Data/Daily_Rainfall/daily_rain_ROI_NI.csv",
+#     "Data/Daily_Rainfall/daily_rain_ROI_NI_2016-2025.csv",
 #     row.names = FALSE
 # )
 
