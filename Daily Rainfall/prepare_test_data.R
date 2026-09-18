@@ -66,7 +66,7 @@ for (county in counties) {
     }
 }
 
-# writeLines(urls, "Data/Daily Rainfall/NI-2016-2025.txt")
+# writeLines(urls, "Data/Daily_Rainfall/NI_Data/NI-2016-2025.txt")
 
 # %%
 
@@ -104,7 +104,7 @@ NI_coords <- lapply(
         name <- coords[11, 3]
         longitude <- as.numeric(coords[17, 4])
         latitude <- as.numeric(coords[17, 3])
-        elevation <- as.numeric(coords[17, 3])
+        elevation <- as.numeric(coords[18, 3])
 
         data.frame(
             stno = stno, name = name,
@@ -130,7 +130,6 @@ NI_coords <- NI_coords |>
         north = st_coordinates(geometry)[, 2]
     ) |>
     st_drop_geometry()
-
 
 ## For other geodata, assign each station geodata values by
 ## interpolating from the underlying grid
@@ -175,6 +174,7 @@ NI_df$day <- as.integer(
 
 ## Add 99 to these station IDs
 NI_df$stno <- NI_df$stno + 9900000
+NI_coords$stno <- NI_coords$stno + 9900000
 NI_df$niflag <- TRUE
 
 # %%
@@ -193,32 +193,35 @@ LTAs_9120 <- read.csv(
     )
 )
 
-NI_coords <- NI_coords |>
-    dplyr::select(stno, east, north)
+NI_coords_6190 <- NI_coords |>
+    dplyr::select(stno, east, north) |>
+    mutate(stno = stno - 9900000)
+NI_coords_9120 <- NI_coords_6190
 LTA_vars <- c(
     paste0("m_", 1:12),
     "Ann",
     "spring", "summer", "autumn", "winter"
 )
-NI_coords[LTA_vars] <- NA
-NI_coords_6190 <- NI_coords
-NI_coords_9120 <- NI_coords
+NI_coords_6190[LTA_vars] <- NA
+NI_coords_9120[LTA_vars] <- NA
 
 LTAs_6190_sf <- st_as_sf(LTAs_6190, coords = c("east", "north"), crs = NA)
-LTAs_9120_sf <- st_as_sf(LTAs_6190, coords = c("east", "north"), crs = NA)
+LTAs_9120_sf <- st_as_sf(LTAs_9120, coords = c("east", "north"), crs = NA)
+NI_6190_sf <- st_as_sf(NI_coords_6190, coords = c("east", "north"), crs = NA)
+NI_9120_sf <- st_as_sf(NI_coords_9120, coords = c("east", "north"), crs = NA)
 
 for (v in LTA_vars) {
     result_6190 <- idw(
         formula = as.formula(paste(v, "~ 1")),
         locations = LTAs_6190_sf,
-        newdata = NI_sf,
+        newdata = NI_6190_sf,
         idp = 2,
         nmax = 8
     )
     result_9120 <- idw(
         formula = as.formula(paste(v, "~ 1")),
         locations = LTAs_9120_sf,
-        newdata = NI_sf,
+        newdata = NI_9120_sf,
         idp = 2,
         nmax = 8
     )
