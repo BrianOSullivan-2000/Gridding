@@ -49,7 +49,6 @@ counties <- c("antrim", "armagh", "down", "derry", "tyrone", "fermanagh")
 
 urls <- c()
 
-
 for (county in counties) {
 
     stnos <- unique(NI_metadata[NI_metadata$historic_county == county, ]$src_id)
