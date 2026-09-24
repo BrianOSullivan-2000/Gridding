@@ -114,32 +114,39 @@ get_daily_rain_data <- function(
     current_month <- dates[date_index, ]$month
     current_year <- dates[date_index, ]$year
 
+    join_data <- function(data) {
+        data <- data |>
+            filter(
+                day == current_day,
+                month == current_month,
+                year == current_year
+            ) |>
+            mutate(
+                LTA = .data[[paste0("m_", current_month)]],
+                normalized_rain = rain / LTA,
+                y = log1p(normalized_rain)
+            )
+    }
+
+
     if (experiment_type == "train_test") {
         daily_rain_data <- list(
             train = rain_data$train,
             test = rain_data$test
         )
+
+        daily_rain_data <- lapply(
+            daily_rain_data, join_data
+        )
+
     } else if (experiment_type == "all_data") {
         daily_rain_data <- bind_rows(
             rain_data$train,
             rain_data$test
-        )
+        ) |>
+            join_data()
     }
 
-    daily_rain_data <- daily_rain_data |>
-        lapply(\(data) {
-            data |>
-                filter(
-                    day == current_day,
-                    month == current_month,
-                    year == current_year
-                ) |>
-                mutate(
-                    LTA = .data[[paste0("m_", current_month)]],
-                    normalized_rain = rain / LTA,
-                    y = log1p(normalized_rain)
-                )
-        })
     daily_rain_data
 }
 

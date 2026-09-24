@@ -74,6 +74,7 @@ Random_Forest <- function(
         verbose = TRUE
     )
 
+    ## Get model residuals
     model$residuals <- y - predict(model, newdata = X)
 
     # Plot and Summary
