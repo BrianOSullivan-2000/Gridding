@@ -163,13 +163,13 @@ NI_df <- NI_df[complete.cases(NI_df), ]
 
 ## Get specific month and day back
 NI_df$year <- as.integer(
-    format(as.Date(NI_df$t - 1, origin = "2016-01-01"), "%Y")
+    format(as.Date(NI_df$t - 2, origin = "2016-01-01"), "%Y")
 )
 NI_df$month <- as.integer(
-    format(as.Date(NI_df$t - 1, origin = "2016-01-01"), "%m")
+    format(as.Date(NI_df$t - 2, origin = "2016-01-01"), "%m")
 )
 NI_df$day <- as.integer(
-    format(as.Date(NI_df$t - 1, origin = "2016-01-01"), "%d")
+    format(as.Date(NI_df$t - 2, origin = "2016-01-01"), "%d")
 )
 
 ## Add 99 to these station IDs

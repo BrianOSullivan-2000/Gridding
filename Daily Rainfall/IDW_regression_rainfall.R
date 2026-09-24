@@ -1,12 +1,14 @@
 
 ## Validation tests for daily rainfall grids ##
-## Inverse Distance Weighting ##
-## Simple method that uses weighted average based on inverse distance ##
+## Inverse Distance Weighting with regression ##
+
+## Step 1 is regression, fit trend to data based on geographic covariates ##
+## Step 2 is interpolation, interpolate residuals using IDW ##
 
 # %%
 
 library(dplyr)
-source("interpolation/IDW.R")
+source("interpolation/IDW_regression.R")
 
 ## Load starting data
 load("Data/Daily_Rainfall/train_test_80_20_2016-2025.RData")
