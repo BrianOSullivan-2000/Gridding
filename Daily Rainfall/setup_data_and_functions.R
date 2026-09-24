@@ -77,6 +77,9 @@ metrics_table <- data.frame(
 
 ## Function for getting metrics
 collect_metrics <- function(metrics_table, name, y, y_hat) {
+
+    require(Metrics)
+
     new_row <- data.frame(
         Name = name,
         RMSE = rmse(y_hat, y),
@@ -149,8 +152,7 @@ update_daily_predictions <- function(
     date_index
 ) {
     daily_rain_data <- get_daily_rain_data(
-        rain_data, dates, date_index,
-        experiment_type = prediction_type
+        rain_data, dates, date_index
     )
 
     daily_rain_data$test <- daily_rain_data$test |>

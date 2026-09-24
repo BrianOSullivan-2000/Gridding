@@ -55,7 +55,7 @@ GLS <- function(
         # Make and fit a variogram if you don't already have one
         model <- lm(formula = formula, data = df)
         sdf$residuals <- model$residuals
-        fit_vgm <- spatial_variogram(sdf, ...)
+        fit_vgm <- spatial_variogram_GLS(sdf, ...)
 
         iter <- ifelse(multi_GLS, n_iter, 1)
         for (i in 1:iter) {

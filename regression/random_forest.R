@@ -18,7 +18,8 @@ Random_Forest <- function(
 
     cv_method = "none", cv_number = 10, cv_index = NULL,
     mtry = 5, splitrule = "variance", min.node.size = 5,
-    seed = 222, plot = FALSE, readout = FALSE, ...
+    seed = 222, plot = FALSE, readout = FALSE,
+    ...
 ) {
 
     # df                      -data frame of response variable and covariates
@@ -72,6 +73,8 @@ Random_Forest <- function(
         importance = ifelse(cv_method == "none", "none", "permutation"),
         verbose = TRUE
     )
+
+    model$residuals <- y - predict(model, newdata = X)
 
     # Plot and Summary
     if (plot == TRUE) {
