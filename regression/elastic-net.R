@@ -43,7 +43,7 @@ Elastic_Net <- function(df, formula, lambda, alpha = 0.1,
                 formula, df,
                 alpha = alpha,
                 use.model.frame = TRUE,
-                lambda = seq(0.02, 0.3, 0.02),
+                lambda = 10^seq(log10(5e-7), log10(0.5), length.out = 20),
                 foldid = foldid
             )
         lambda <- cvfit$lambda.min
