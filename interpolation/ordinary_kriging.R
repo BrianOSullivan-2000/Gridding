@@ -108,9 +108,19 @@ spatial_variogram_kriging <- function(df, flex_vgm = FALSE, flex_fit = TRUE,
 
     # Flexible way to get initial variogram parameters
     if (flex_fit == TRUE) {
-        nugget <- mean(vgm$gamma[1:3])
-        psill <- mean(vgm$gamma) - nugget
+
+        nugget <- min(vgm$gamma)
+
+        psill <- median(
+            vgm$gamma[
+                vgm$dist >= quantile(vgm$dist, 0.75, na.rm = TRUE)
+            ],
+            na.rm = TRUE
+        ) - nugget
+        psill <- max(psill, 0)
+
         range <- vgm$dist[which.min(abs(vgm$gamma - (psill + nugget)))]
+
     }
 
     # Set up theoretical variogram - then fit to empirical variogram
@@ -119,6 +129,22 @@ spatial_variogram_kriging <- function(df, flex_vgm = FALSE, flex_fit = TRUE,
         range = range, kappa = kappa
     )
     fit_vgm <- fit.variogram(vgm, fit_vgm)
+
+    if (attr(fit_vgm, "singular")) {
+
+        fit_vgm <- fit.variogram(
+            vgm,
+            vgm(
+                model = vgm_model,
+                psill = psill,
+                nugget = nugget,
+                range = range,
+                kappa = kappa
+            ),
+            fit.sills = c(FALSE, FALSE),
+            fit.ranges = TRUE
+        )
+    }
 
     if (plot_vgm) {
         print(plot(vgm, fit_vgm))

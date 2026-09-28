@@ -38,7 +38,7 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
                 nmax = nmax
             )$var1.pred
 
-        rain_data <- get_daily_predictions(
+        rain_data <- update_daily_predictions(
             rain_data, y_hat, dates, date_index
         )
     }
@@ -115,7 +115,7 @@ for (date_index in seq_len(nrow(dates))) {
             nmaxs = c(8, 10, 12, 15)
         )$var1.pred
 
-    rain_data <- get_daily_predictions(
+    rain_data <- update_daily_predictions(
         rain_data, y_hat, dates, date_index
     )
 }
@@ -180,7 +180,9 @@ for (date_index in seq_len(nrow(dates))) {
 }
 
 ## I've added this to idp=2 nmax=15 row in the IDW results
-print(paste(
-    "Mean Time",
-    mean(times)
-))
+print(
+    paste(
+        "Mean Time",
+        mean(times)
+    )
+)

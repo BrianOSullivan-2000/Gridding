@@ -8,6 +8,7 @@
 # %%
 
 library(dplyr)
+
 source("interpolation/regression_IDW.R")
 
 ## Load starting data
@@ -230,12 +231,12 @@ for (date_index in seq_len(nrow(dates))) {
             regression_method = XGBOOST,
             formula = f,
 
-            nrounds = 50,
-            max_depth = 3,
-            learning_rate = 0.01,
+            nrounds = 100,
+            max_depth = 6,
+            learning_rate = 0.001,
             min_child_weight = 1,
-            subsample = 0.5,
-            colsample_bytree = 0.5,
+            subsample = 0.2,
+            colsample_bytree = 1,
 
             idp = 2,
             nmax = 15
@@ -465,12 +466,12 @@ for (date_index in seq_len(nrow(dates))) {
             regression_method = XGBOOST,
             formula = f,
 
-            nrounds = 50,
-            max_depth = 3,
-            learning_rate = 0.01,
+            nrounds = 100,
+            max_depth = 6,
+            learning_rate = 0.001,
             min_child_weight = 1,
-            subsample = 0.5,
-            colsample_bytree = 0.5,
+            subsample = 0.2,
+            colsample_bytree = 1,
 
             idp = 2,
             nmax = 15
@@ -497,7 +498,5 @@ for (date_index in seq_len(nrow(dates))) {
     print(date_index)
 }
 
-print(paste(
-    "Mean Time",
-    mean(times)
-))
+print("Mean Times")
+print(apply(times, 2, mean))
