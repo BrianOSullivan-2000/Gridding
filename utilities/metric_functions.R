@@ -35,6 +35,16 @@ ME10 <- function(y_hat, y) {
 }
 
 ## Check bias for Wet Days (Daily Rainfall)
-Wet_Day_Bias <- function(y_hat, y) {
+Rain_Day_Bias <- function(y_hat, y) {
     (sum(y_hat > 0.2) - sum(y > 0.2)) * 100 / sum(y > 0.2)
+}
+
+## Check bias for Wet Days (Daily Rainfall)
+Wet_Day_Bias <- function(y_hat, y) {
+    (sum(y_hat > 1) - sum(y > 1)) * 100 / sum(y > 1)
+}
+
+## Check bias for Wet Days (Daily Rainfall)
+Heavy_Wet_Day_Bias <- function(y_hat, y) {
+    (sum(y_hat > 10) - sum(y > 10)) * 100 / sum(y > 10)
 }

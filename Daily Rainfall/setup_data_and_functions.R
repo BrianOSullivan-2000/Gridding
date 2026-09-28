@@ -89,7 +89,9 @@ collect_metrics <- function(metrics_table, name, y, y_hat) {
         R2 = R2(y_hat, y),
         JSD = JSD(y, y_hat),
         ME10 = ME10(y_hat, y),
-        Wet_Day_Bias = Wet_Day_Bias(y_hat, y)
+        Rain_Day_Bias = Rain_Day_Bias(y_hat, y),
+        Wet_Day_Bias = Wet_Day_Bias(y_hat, y),
+        Heavy_Wet_Day_Bias = Heavy_Wet_Day_Bias(y_hat, y)
     )
 
     if (missing(metrics_table) || is.null(metrics_table)) {

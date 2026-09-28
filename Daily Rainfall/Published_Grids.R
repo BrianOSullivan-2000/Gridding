@@ -43,7 +43,7 @@ for (current_year in 2016:2025) {
     )
     
     plot_grid <- daily_rainfall_grids[c("east", "north", daily_column)]
-    plot_grid$rain <- plot_grid[daily_column]
+    plot_grid$rain <- plot_grid[daily_column] / 10
     
     daily_rain_plot(
       plot_grid,
@@ -56,5 +56,7 @@ for (current_year in 2016:2025) {
         ".jpg"
       )
     )
+    
+    print(date_index)
   }
 }

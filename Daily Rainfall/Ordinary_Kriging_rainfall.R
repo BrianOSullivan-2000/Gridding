@@ -72,7 +72,6 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
 
 # %%
 
-
 ## Also going to check against nearest neighbours
 nmaxs <- c(8, 12, 15, 20, 50, Inf)
 cutoffs <- c(200000, 250000, 300000, 350000, 400000)

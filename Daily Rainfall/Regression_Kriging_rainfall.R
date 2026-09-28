@@ -327,3 +327,131 @@ print(metrics_table)
 #     ),
 #     row.names = FALSE
 # )
+
+
+# %%
+
+## Check grids and computation time
+
+## Checking Exp with MLR (simple model)
+## and Exp with XGBoost (complex model)
+
+times <- matrix(nrow = 200, ncol = 2)
+colnames(times) <- c("Exp MLR", "Exp XGB")
+
+plot_grid <- grid_geodata[c("east", "north")]
+
+for (date_index in seq_len(nrow(dates))) {
+
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
+    ## Exp MLR
+
+    st <- Sys.time()
+
+    daily_rain_data <- get_daily_rain_data(
+        rain_data, dates, date_index, experiment_type = "all_data"
+    )
+
+    y_hat <-
+        regression_kriging(
+            daily_rain_data,
+            grid_geodata,
+            daily_rain_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            regression_method = MLR,
+            formula = y ~ east + north,
+
+            cutoff = 350000,
+            width = 15000,
+            nmax = 15,
+
+            flex_fit = TRUE,
+            vgm_model = "Mat",
+            kappa = 0.5,
+            debug.level = 0
+        )$var1.pred
+
+    grid_geodata$rain <-
+        expm1(y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+
+    daily_rain_plot(
+        grid_geodata,
+        daily_rain_data,
+        plot_destination = paste0(
+            "Figures/Daily_Rainfall/RK_Exp/RK_Exp_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    et <- Sys.time()
+    times[date_index, 1] <- et - st
+
+    ## Exp XGBoost
+
+    st <- Sys.time()
+
+    daily_rain_data <- get_daily_rain_data(
+        rain_data, dates, date_index, experiment_type = "all_data"
+    )
+
+    y_hat <-
+        regression_kriging(
+            daily_rain_data,
+            grid_geodata,
+            daily_rain_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            regression_method = XGBOOST,
+            formula = y ~ east + north +
+                points5 + dist2c + exp25k +
+                n5 + e5 + s5 + w5 +
+                ne5 + nw5 + se5 + sw5,
+
+            nrounds = 300,
+            max_depth = 6,
+            learning_rate = 0.001,
+            min_child_weight = 1,
+            subsample = 0.2,
+            colsample_bytree = 1,
+
+            cutoff = 350000,
+            width = 15000,
+            nmax = 15,
+
+            flex_fit = TRUE,
+            vgm_model = "Mat",
+            kappa = 0.5,
+            debug.level = 0
+        )$var1.pred
+
+    grid_geodata$rain <-
+        expm1(y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+
+    daily_rain_plot(
+        grid_geodata,
+        daily_rain_data,
+        plot_destination = paste0(
+            "Figures/Daily_Rainfall/RK_Exp_XGB/RK_Exp_XGB_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    et <- Sys.time()
+    times[date_index, 1] <- et - st
+
+
+    print(date_index)
+}
+
+print("Mean Times")
+print(apply(times, 2, mean))
