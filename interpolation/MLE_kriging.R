@@ -14,7 +14,7 @@
 MLE_kriging <- function(df, new_df, coords, new_coords,
                         init_pars, lower, upper,
                         formula = y ~ 1, cov_function = "Mat", maxit = 1000,
-                        useRcpp = FALSE) {
+                        useRcpp = FALSE, return_model = FALSE) {
 
     # df                      -data frame of response variable and covariates
     # new_df                  -data frame of covariates for grid locations
@@ -31,6 +31,8 @@ MLE_kriging <- function(df, new_df, coords, new_coords,
     # maxit                   -max number of iterations for MLE
 
     # useRcpp                 -if true, will use faster functions coded in C++
+    # return_model            -if true, just return the fitted spatial model
+    #                         doesn't work with useRcpp
 
     # Load in necessary packages
     require(sp)
@@ -124,9 +126,14 @@ MLE_kriging <- function(df, new_df, coords, new_coords,
         # Solve for regression parameters
         betahat <- solve(t(X) %*% Vinv %*% X) %*% (t(X) %*% (Vinv %*% y))
 
+        if (return_model) {
+            return(list("pars" = pars, "betahat" = betahat))
+        }
+
         new_df$pred <- as.numeric(new_X %*% betahat + t(cross_V) %*%
                                       (Vinv %*% (y - X %*% betahat)))
     }
+
     new_df
 }
 
