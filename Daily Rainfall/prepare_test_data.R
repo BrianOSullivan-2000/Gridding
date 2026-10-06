@@ -1,6 +1,6 @@
 
 ## R Script to prepare a test dataset for daily rain across Ireland
-## This file puts together 10 year of daily rain (2016-2025), randomly
+## This file puts together 10 years of daily rain (2016-2025), randomly
 ## samples 200 days, and puts together train and test folds
 
 ## Data is collected from Met Éireann's network (dba.daily_rain_clean)

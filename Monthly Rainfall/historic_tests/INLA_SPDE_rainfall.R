@@ -16,7 +16,7 @@ library(dplyr)
 library(sp)
 
 ## Load starting data
-load("Data/Monthly_Rainfall/train_test_80_20_2016-2025.RData")
+load("Data/Monthly_Rainfall/train_test_80_20_1883-1940.RData")
 
 # %%
 
@@ -164,7 +164,7 @@ print(metrics_table)
 # write.csv(
 #     metrics_table,
 #     paste0(
-#         "Results/Monthly_Rainfall/train_test_80_20_2016-2025/",
+#         "Results/Monthly_Rainfall/train_test_80_20_1883-1940/",
 #         "INLA_SPDE_trend.csv"
 #     ),
 #     row.names = FALSE
@@ -193,6 +193,19 @@ for (date_index in seq_len(nrow(dates))) {
     )
     pred_grid <- grid_geodata
 
+    ## Get fixed effects from formula (covariates)
+    linear_terms <- all.vars(f[[3]])
+    fixed_effects <- lapply(
+        linear_terms,
+        function(x) monthly_rain_data[[x]]
+    )
+    fixed_effects_test <- lapply(
+        linear_terms,
+        function(x) pred_grid[[x]]
+    )
+    names(fixed_effects_test) <- linear_terms
+    names(fixed_effects) <- linear_terms
+
     coordinates(monthly_rain_data) <- c("east", "north")
     coordinates(pred_grid) <- c("east", "north")
     proj4string(monthly_rain_data) <- CRS("EPSG:29903")
@@ -206,10 +219,10 @@ for (date_index in seq_len(nrow(dates))) {
     ## Stack for training data
     ireland.train.stack <- inla.stack(
         data = list(y = monthly_rain_data$y),
-        A = list(A.train),
+        A = list(A.train, 1),
         effects = list(
-            c(s.index, list(Intercept = 1))
-            ## I have to add like the trend terms here
+            c(s.index, list(Intercept = 1)),
+            fixed_effects
         ),
         tag = "ireland.train"
     )
@@ -221,12 +234,14 @@ for (date_index in seq_len(nrow(dates))) {
     )
     ireland.test.stack <- inla.stack(
         data = list(y = NA),
-        A = list(A.test),
+        A = list(A.test, 1),
         effects = list(
-            c(s.index, list(Intercept = 1))
+            c(s.index, list(Intercept = 1)),
+            fixed_effects_test
         ),
         tag = "ireland.test"
     )
+
 
     ## Full stack
     ireland.stack <- inla.stack(
@@ -252,13 +267,14 @@ for (date_index in seq_len(nrow(dates))) {
 
     y_hat <- model$summary.fitted.values[index.pred, "mean"]
     grid_geodata$rain <-
-        (y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+        (y_hat) * grid_LTAs[paste0("m_", current_month)]
 
     monthly_rain_plot(
         grid_geodata,
         as.data.frame(monthly_rain_data),
         plot_destination = paste0(
-            "Figures/Monthly_Rainfall/INLA_SPDE/INLA_SPDE_",
+            "Figures/Monthly_Rainfall/historic/",
+            "INLA_SPDE/INLA_SPDE_",
             current_year, "_",
             sprintf("%02d", current_month),
             ".jpg"
