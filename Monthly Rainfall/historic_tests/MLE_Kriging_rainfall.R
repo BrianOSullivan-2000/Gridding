@@ -124,7 +124,7 @@ for (date_index in seq_len(nrow(dates))) {
         )$pred
 
     grid_geodata$rain <-
-        (y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+        (y_hat) * grid_LTAs[paste0("m_", current_month)]
 
     monthly_rain_plot(
         grid_geodata,

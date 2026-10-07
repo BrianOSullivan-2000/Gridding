@@ -27,13 +27,12 @@ f <- as.formula(
         "y ~",
         paste(
             "east", "north",
-            # "points5",
+            "points5",
             # "dist2c", "exp25k",
             sep = " + "
         )
     )
 )
-f <- y ~ 1
 
 # %%
 
@@ -53,7 +52,7 @@ for (date_index in seq_len(nrow(dates))) {
             daily_rain_data$train[c("east", "north")],
             daily_rain_data$test[c("east", "north")],
 
-            cov_function = "Sph",
+            cov_function = "Exp",
 
             formula = f,
 
@@ -72,7 +71,7 @@ for (date_index in seq_len(nrow(dates))) {
 metrics_table <-
     collect_metrics(
         metrics_table = NULL,
-        "RK Sph MLE",
+        "RK Exp MLE",
         rain_data$test$rain,
         rain_data$test$predicted_rain
     )
@@ -82,7 +81,7 @@ print(metrics_table)
 #     metrics_table,
 #     paste0(
 #         "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
-#         "RK_Sph_MLE.csv"
+#         "RK_Exp_MLE_trend.csv"
 #     ),
 #     row.names = FALSE
 # )
@@ -130,7 +129,7 @@ for (date_index in seq_len(nrow(dates))) {
         grid_geodata,
         daily_rain_data,
         plot_destination = paste0(
-            "Figures/Daily_Rainfall/Kriging_MLE_Exp/Kriging_MLE_Exp_",
+            "Figures/Daily_Rainfall/RK_Exp_MLE_trend/RK_Exp_MLE_trend_",
             current_year, "_",
             sprintf("%02d", current_month), "_",
             sprintf("%02d", current_day),

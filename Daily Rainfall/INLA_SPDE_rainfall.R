@@ -1,5 +1,5 @@
 
-## Validation tests for monthly rainfall grids  ##
+## Validation tests for daily rainfall grids  ##
 
 ## INLA SPDE approach ##
 
@@ -69,37 +69,37 @@ st <- Sys.time()
 
 for (date_index in seq_len(nrow(dates))) {
 
-    monthly_rain_data <- get_monthly_rain_data(
+    daily_rain_data <- get_daily_rain_data(
         rain_data, dates, date_index
     )
 
     ## Get fixed effects from formula (covariates)
     fixed_effects <- lapply(
         linear_terms,
-        function(x) monthly_rain_data$train[[x]]
+        function(x) daily_rain_data$train[[x]]
     )
     fixed_effects_test <- lapply(
         linear_terms,
-        function(x) monthly_rain_data$test[[x]]
+        function(x) daily_rain_data$test[[x]]
     )
     names(fixed_effects_test) <- linear_terms
     names(fixed_effects) <- linear_terms
     fixed_effects$Intercept <- 1
     fixed_effects_test$Intercept <- 1
 
-    coordinates(monthly_rain_data$train) <- c("east", "north")
-    coordinates(monthly_rain_data$test) <- c("east", "north")
-    proj4string(monthly_rain_data$train) <- CRS("EPSG:29903")
-    proj4string(monthly_rain_data$test) <- CRS("EPSG:29903")
+    coordinates(daily_rain_data$train) <- c("east", "north")
+    coordinates(daily_rain_data$test) <- c("east", "north")
+    proj4string(daily_rain_data$train) <- CRS("EPSG:29903")
+    proj4string(daily_rain_data$test) <- CRS("EPSG:29903")
 
     A.train <- inla.spde.make.A(
         mesh = ireland_mesh,
-        loc = coordinates(monthly_rain_data$train)
+        loc = coordinates(daily_rain_data$train)
     )
 
     ## Stack for training data
     ireland.train.stack <- inla.stack(
-        data = list(y = monthly_rain_data$train$y),
+        data = list(y = daily_rain_data$train$y),
         A = list(A.train, 1),
         effects = list(
             s.index,
@@ -111,7 +111,7 @@ for (date_index in seq_len(nrow(dates))) {
     ## Stack for test data
     A.test <- inla.spde.make.A(
         mesh = ireland_mesh,
-        loc = coordinates(monthly_rain_data$test)
+        loc = coordinates(daily_rain_data$test)
     )
     ireland.test.stack <- inla.stack(
         data = list(y = NA),
@@ -147,7 +147,7 @@ for (date_index in seq_len(nrow(dates))) {
 
     y_hat <- model$summary.fitted.values[index.pred, "mean"]
 
-    rain_data <- update_monthly_predictions(
+    rain_data <- update_daily_predictions(
         rain_data, y_hat, dates, date_index
     )
 
@@ -184,12 +184,13 @@ plot_grid <- grid_geodata[c("east", "north")]
 
 for (date_index in seq_len(nrow(dates))) {
 
+    current_day <- dates[date_index, ]$day
     current_month <- dates[date_index, ]$month
     current_year <- dates[date_index, ]$year
 
     st <- Sys.time()
 
-    monthly_rain_data <- get_monthly_rain_data(
+    daily_rain_data <- get_daily_rain_data(
         rain_data, dates, date_index,
         experiment_type = "all_data"
     )
@@ -198,7 +199,7 @@ for (date_index in seq_len(nrow(dates))) {
     ## Get fixed effects from formula (covariates)
     fixed_effects <- lapply(
         linear_terms,
-        function(x) monthly_rain_data[[x]]
+        function(x) daily_rain_data[[x]]
     )
     fixed_effects_test <- lapply(
         linear_terms,
@@ -209,19 +210,19 @@ for (date_index in seq_len(nrow(dates))) {
     fixed_effects$Intercept <- 1
     fixed_effects_test$Intercept <- 1
 
-    coordinates(monthly_rain_data) <- c("east", "north")
+    coordinates(daily_rain_data) <- c("east", "north")
     coordinates(pred_grid) <- c("east", "north")
-    proj4string(monthly_rain_data) <- CRS("EPSG:29903")
+    proj4string(daily_rain_data) <- CRS("EPSG:29903")
     proj4string(pred_grid) <- CRS("EPSG:29903")
 
     A.train <- inla.spde.make.A(
         mesh = ireland_mesh,
-        loc = coordinates(monthly_rain_data)
+        loc = coordinates(daily_rain_data)
     )
 
     ## Stack for training data
     ireland.train.stack <- inla.stack(
-        data = list(y = monthly_rain_data$y),
+        data = list(y = daily_rain_data$y),
         A = list(A.train, 1),
         effects = list(
             s.index,
@@ -269,16 +270,17 @@ for (date_index in seq_len(nrow(dates))) {
 
     y_hat <- model$summary.fitted.values[index.pred, "mean"]
     grid_geodata$rain <-
-        (y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+        expm1(y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
 
-    monthly_rain_plot(
+    daily_rain_plot(
         grid_geodata,
-        as.data.frame(monthly_rain_data),
+        as.data.frame(daily_rain_data),
         plot_destination = paste0(
             "Figures/Daily_Rainfall/",
             "INLA_SPDE_Exp_trend/INLA_SPDE_Exp_trend_",
             current_year, "_",
-            sprintf("%02d", current_month),
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
             ".jpg"
         )
     )

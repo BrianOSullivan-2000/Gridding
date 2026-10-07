@@ -21,19 +21,18 @@ load("Data/Monthly_Rainfall/train_test_80_20_1883-1940.RData")
 # %%
 
 ## Set formula
-f <- as.formula(
-    paste(
-        "y ~",
-        paste(
-            "east", "north",
-            "points5",
-            # "dist2c",
-            # "exp25k",
-            # "n5", "e5", "s5", "w5",
-            sep = " + "
-        )
-    )
+f <- "y ~ 0 + Intercept + f(spatial.field, model = spde) +"
+linear_terms <- paste(
+    "east", "north",
+    "points5",
+    # "dist2c",
+    # "exp25k",
+    # "n5", "e5", "s5", "w5",
+
+    sep = " + "
 )
+f <- as.formula(paste(f, linear_terms))
+linear_terms <- strsplit(linear_terms, " + ", fixed = TRUE)[[1]]
 
 # %%
 
@@ -52,7 +51,7 @@ ireland_mesh <- fm_mesh_2d_inla(
     offset = c(40000, 80000),
     cutoff = 20000
 )
-ireland.spde <- inla.spde2.matern(mesh = ireland_mesh, alpha = 2)
+ireland.spde <- inla.spde2.matern(mesh = ireland_mesh, alpha = 1.5)
 
 s.index <- inla.spde.make.index(
     name = "spatial.field",
@@ -70,7 +69,6 @@ for (date_index in seq_len(nrow(dates))) {
     )
 
     ## Get fixed effects from formula (covariates)
-    linear_terms <- all.vars(f[[3]])
     fixed_effects <- lapply(
         linear_terms,
         function(x) monthly_rain_data$train[[x]]
@@ -81,6 +79,8 @@ for (date_index in seq_len(nrow(dates))) {
     )
     names(fixed_effects_test) <- linear_terms
     names(fixed_effects) <- linear_terms
+    fixed_effects$Intercept <- 1
+    fixed_effects_test$Intercept <- 1
 
     coordinates(monthly_rain_data$train) <- c("east", "north")
     coordinates(monthly_rain_data$test) <- c("east", "north")
@@ -97,7 +97,7 @@ for (date_index in seq_len(nrow(dates))) {
         data = list(y = monthly_rain_data$train$y),
         A = list(A.train, 1),
         effects = list(
-            c(s.index, list(Intercept = 1)),
+            s.index,
             fixed_effects
         ),
         tag = "ireland.train"
@@ -112,7 +112,7 @@ for (date_index in seq_len(nrow(dates))) {
         data = list(y = NA),
         A = list(A.test, 1),
         effects = list(
-            c(s.index, list(Intercept = 1)),
+            s.index,
             fixed_effects_test
         ),
         tag = "ireland.test"
@@ -124,20 +124,17 @@ for (date_index in seq_len(nrow(dates))) {
         ireland.test.stack
     )
 
-    f_spatial <- update(
-        f,
-        . ~ . + Intercept - 1 + f(spatial.field, model = spde)
-    )
-
     model <- inla(
-        f_spatial,
+        f,
         data = inla.stack.data(ireland.stack, spde = ireland.spde),
         family = "gaussian",
         control.predictor = list(
-            A = inla.stack.A(ireland.stack), compute = TRUE
+            A = inla.stack.A(ireland.stack),
+            compute = FALSE
         ),
+        quantiles = NULL,
         control.compute = list(
-            cpo = TRUE, dic = TRUE
+            return.marginals = FALSE
         )
     )
 
@@ -155,7 +152,7 @@ for (date_index in seq_len(nrow(dates))) {
 metrics_table <-
     collect_metrics(
         metrics_table = NULL,
-        "INLA SPDE",
+        "INLA SPDE Exp",
         rain_data$test$rain,
         rain_data$test$predicted_rain
     )
