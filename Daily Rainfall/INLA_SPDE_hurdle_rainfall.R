@@ -232,14 +232,14 @@ metrics_table <-
     )
 print(metrics_table)
 
-write.csv(
-    metrics_table,
-    paste0(
-        "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
-        "INLA_SPDE_hurdle.csv"
-    ),
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
+#         "INLA_SPDE_hurdle.csv"
+#     ),
+#     row.names = FALSE
+# )
 
 print(paste("Final Time", Sys.time() - st))
 

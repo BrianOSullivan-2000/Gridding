@@ -190,8 +190,6 @@ NI_sf <- st_as_sf(NI_coords, coords = c("east", "north"), crs = NA)
 geodata_vars <- names(grid)[5:ncol(grid)]
 NI_coords[geodata_vars] <- NA
 
-library(gstat)
-
 for (v in geodata_vars) {
     result <- idw(
         formula = as.formula(paste(v, "~ 1")),
