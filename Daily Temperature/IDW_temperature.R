@@ -14,8 +14,8 @@ load("Data/Daily_Temperature/train_test_80_20_2025.RData")
 # %%
 
 ## Set up grid search for hyperparameters
-idps <- c(1, 1.5, 2, 2.5, 3)
-nmaxs <- c(3, 5, 8, 10, 12, 15, 20)
+idps <- c(0.5, 0.75, 1, 1.5, 2, 2.5, 3)
+nmaxs <- c(3, 5, 8, 10, 12, 15, 20, 25)
 hyperparameters <- expand.grid(idp = idps, nmax = nmaxs)
 
 for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
@@ -67,15 +67,13 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
             temperature_data$test$mint,
             temperature_data$test$predicted_mint
         )
-
-    print(hyperparameter_index)
 }
 
-write.csv(
-    metrics_table,
-    "Results/Daily_Temperature/train_test_80_20_2025/IDW_config_log.csv",
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     "Results/Daily_Temperature/train_test_80_20_2025/IDW_config.csv",
+#     row.names = FALSE
+# )
 
 # %%
 
@@ -121,35 +119,54 @@ IDW_grid_search <- function(
 
 for (date_index in seq_len(nrow(dates))) {
 
-    daily_rain_data <- get_daily_rain_data(
-        rain_data, dates, date_index
-    )
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data, dates, date_index
+        )
 
-    y_hat <-
+    y_hat_maxt <-
         IDW_grid_search(
-            daily_rain_data$train$y,
-            daily_rain_data$train[c("east", "north")],
-            daily_rain_data$test[c("east", "north")],
-            idps = c(1.5, 2, 2.5),
-            nmaxs = c(8, 10, 12, 15)
+            daily_temperature_data$train$y_maxt,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+            idps = c(1, 1.5, 2),
+            nmaxs = c(10, 12, 15, 20)
         )$var1.pred
 
-    rain_data <- update_daily_predictions(
-        rain_data, y_hat, dates, date_index
-    )
+    y_hat_mint <-
+        IDW_grid_search(
+            daily_temperature_data$train$y_mint,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+            idps = c(1, 1.5, 2),
+            nmaxs = c(10, 12, 15, 20)
+        )$var1.pred
+
+    temperature_data <-
+        update_daily_predictions(
+            temperature_data,
+            y_hat_maxt,
+            y_hat_mint,
+            dates,
+            date_index
+        )
+
+    print(date_index)
 }
 
 metrics_table <-
     collect_metrics(
         metrics_table = NULL,
         "IDW Grid Search",
-        rain_data$test$rain,
-        rain_data$test$predicted_rain
+        temperature_data$test$maxt,
+        temperature_data$test$predicted_maxt,
+        temperature_data$test$mint,
+        temperature_data$test$predicted_mint
     )
 
 # write.csv(
 #     metrics_table,
-#     "Results/Daily_Rainfall/train_test_80_20_2016-2025/IDW_grid_search.csv",
+#     "Results/Daily_Temperature/train_test_80_20_2025/IDW_grid_search.csv",
 #     row.names = FALSE
 # )
 
@@ -166,27 +183,47 @@ for (date_index in seq_len(nrow(dates))) {
 
     st <- Sys.time()
 
-    daily_rain_data <- get_daily_rain_data(
-        rain_data, dates, date_index, experiment_type = "all_data"
-    )
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
 
-    y_hat <-
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data,
+            dates,
+            date_index,
+            experiment_type = "all_data"
+        )
+
+    y_hat_maxt <-
         IDW(
-            daily_rain_data$y,
-            daily_rain_data[c("east", "north")],
+            daily_temperature_data$y_maxt,
+            daily_temperature_data[c("east", "north")],
             grid_geodata[c("east", "north")],
-            idp = 2,
+            idp = 1,
             nmax = 15
         )$var1.pred
 
-    grid_geodata$rain <-
-        expm1(y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+    y_hat_mint <-
+        IDW(
+            daily_temperature_data$y_mint,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+            idp = 1,
+            nmax = 15
+        )$var1.pred
 
-    daily_rain_plot(
+    grid_geodata$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    grid_geodata$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
         grid_geodata,
-        daily_rain_data,
+        daily_temperature_data,
         plot_destination = paste0(
-            "Figures/Daily_Rainfall/IDW/IDW_",
+            "Figures/Daily_Temperature/IDW/AA_IDW_",
             current_year, "_",
             sprintf("%02d", current_month), "_",
             sprintf("%02d", current_day),
@@ -198,7 +235,6 @@ for (date_index in seq_len(nrow(dates))) {
     times <- c(times, et - st)
 }
 
-## I've added this to idp=2 nmax=15 row in the IDW results
 print(
     paste(
         "Mean Time",

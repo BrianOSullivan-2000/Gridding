@@ -147,6 +147,10 @@ for (date_index in seq_len(nrow(dates))) {
 
     st <- Sys.time()
 
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
     daily_rain_data <- get_daily_rain_data(
         rain_data, dates, date_index, experiment_type = "all_data"
     )

@@ -42,25 +42,41 @@ LTAs_max_6190 <- read.csv(
         "Data/General/LTAs/Temperature/",
         "LTAs_Temperature_max_grid_1961-1990.csv"
     )
-)
+) |>
+    semi_join(
+        grid_geodata,
+        by = c("east", "north")
+    )
 LTAs_max_9120 <- read.csv(
     paste0(
         "Data/General/LTAs/Temperature/",
         "LTAs_Temperature_max_grid_1991-2020.csv"
     )
-)
+) |>
+    semi_join(
+        grid_geodata,
+        by = c("east", "north")
+    )
 LTAs_min_6190 <- read.csv(
     paste0(
         "Data/General/LTAs/Temperature/",
         "LTAs_Temperature_min_grid_1961-1990.csv"
     )
-)
+) |>
+    semi_join(
+        grid_geodata,
+        by = c("east", "north")
+    )
 LTAs_min_9120 <- read.csv(
     paste0(
         "Data/General/LTAs/Temperature/",
         "LTAs_Temperature_min_grid_1991-2020.csv"
     )
-)
+) |>
+    semi_join(
+        grid_geodata,
+        by = c("east", "north")
+    )
 
 
 ## Island Outline for plotting
@@ -269,6 +285,7 @@ update_daily_predictions <- function(
 }
 
 
+
 daily_temperature_plot <- function(
     grid, daily_temperature_data, plot_destination
 ) {
@@ -276,7 +293,11 @@ daily_temperature_plot <- function(
     require(paletteer)
     require(cowplot)
 
-    full_breaks <- seq(-19, 34)
+    full_breaks <- c(
+        -19, -14, -10, -7,
+        seq(-5, 26),
+        28, 31, 35
+    )
     full_palette <- colorRampPalette(
         colors = paletteer_c(
             palette = "grDevices::Zissou 1",
@@ -286,19 +307,39 @@ daily_temperature_plot <- function(
         length(full_breaks)
     )
 
-    max_breaks <- full_breaks[
-        floor(min(grid$maxt)):ceiling(max(grid$maxt))
-    ]
-    min_breaks <- full_breaks[
-        floor(min(grid$mint)):ceiling(max(grid$mint))
-    ]
+    min_max <- min(c(
+        grid$maxt,
+        daily_temperature_data$maxt
+    ))
+    max_max <- max(c(
+        grid$maxt,
+        daily_temperature_data$maxt
+    ))
+    max_idx <-
+        findInterval(
+            min_max, full_breaks
+        ):findInterval(
+            max_max, full_breaks
+        )
+    max_breaks <- full_breaks[max_idx]
+    max_palette <- full_palette[max_idx]
 
-    max_palette <- full_palette[
-        floor(min(grid$maxt)):ceiling(max(grid$maxt))
-    ]
-    min_palette <- full_palette[
-        floor(min(grid$mint)):ceiling(max(grid$mint))
-    ]
+    min_min <- min(c(
+        grid$mint,
+        daily_temperature_data$mint
+    ))
+    max_min <- max(c(
+        grid$mint,
+        daily_temperature_data$mint
+    ))
+    min_idx <-
+        findInterval(
+            min_min, full_breaks
+        ):findInterval(
+            max_min, full_breaks
+        )
+    min_breaks <- full_breaks[min_idx]
+    min_palette <- full_palette[min_idx]
 
     maxt_plot <-
         base_grid_plot(
@@ -306,6 +347,7 @@ daily_temperature_plot <- function(
             island_outline,
             response = "maxt",
             stations = daily_temperature_data,
+            grid_size = 0.07,
             station_size = 1.5,
             breaks = max_breaks,
             colour_palette = max_palette
@@ -317,6 +359,7 @@ daily_temperature_plot <- function(
             island_outline,
             response = "mint",
             stations = daily_temperature_data,
+            grid_size = 0.07,
             station_size = 1.5,
             breaks = min_breaks,
             colour_palette = min_palette
@@ -326,8 +369,10 @@ daily_temperature_plot <- function(
         plot_grid(maxt_plot, mint_plot, ncol = 2)
 
     ggsave(
+        plot_destination,
         full_plot,
-        plot_destination
+        width = 14,
+        height = 7
     )
 }
 
@@ -340,4 +385,4 @@ daily_temperature_plot <- function(
 
 
 
-save.image(file = "Data/Daily_Temperature/train_test_80_20_2025.RData")
+# save.image(file = "Data/Daily_Temperature/train_test_80_20_2025.RData")
