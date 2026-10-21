@@ -36,9 +36,6 @@ f <- as.formula(
 
 # %%
 
-rain_data_OK <- rain_data
-
-
 for (date_index in seq_len(nrow(dates))) {
 
     daily_rain_data <- get_daily_rain_data(

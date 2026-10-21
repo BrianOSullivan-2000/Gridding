@@ -223,7 +223,7 @@ for (date_index in seq_len(nrow(dates))) {
         grid_geodata,
         daily_temperature_data,
         plot_destination = paste0(
-            "Figures/Daily_Temperature/IDW/AA_IDW_",
+            "Figures/Daily_Temperature/IDW/IDW_",
             current_year, "_",
             sprintf("%02d", current_month), "_",
             sprintf("%02d", current_day),
@@ -233,6 +233,15 @@ for (date_index in seq_len(nrow(dates))) {
 
     et <- Sys.time()
     times <- c(times, et - st)
+
+    print(
+        paste0(
+            date_index, "    ",
+            current_day, "-",
+            current_month, "-",
+            current_year
+        )
+    )
 }
 
 print(

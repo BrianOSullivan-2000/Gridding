@@ -73,6 +73,35 @@ formulae_mint <- lapply(
     }
 )
 
+## Regression Formula
+f_maxt <- as.formula(
+    paste(
+        "y_maxt ~",
+        paste(
+            "east", "north",
+            "points5",
+            "dist2c",
+            # "exp25k",
+            "aspect_10km",
+            sep = " + "
+        )
+    )
+)
+
+f_mint <- as.formula(
+    paste(
+        "y_mint ~",
+        paste(
+            "east", "north",
+            "points5",
+            "dist2c",
+            # "exp25k",
+            "aspect_10km",
+            sep = " + "
+        )
+    )
+)
+
 # %%
 
 ## Stepwise Regression
@@ -296,14 +325,14 @@ metrics_table <-
 
 # %%
 
-# Random Forests
+# Random Forests Grid Search
 
 source("regression/random_forest.R")
 
 ## Set up grid search for hyperparameters
 idps <- c(1, 2)
 nmaxs <- c(10, 15, 20)
-mtrys <- c(2, 3, 5, 8, 10)
+mtrys <- c(3, 5, 8, 10)
 min.node.sizes <- c(1, 2, 3)
 formula_idx <- seq_along(formulae_maxt)
 hyperparameters <- expand.grid(
@@ -398,14 +427,109 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
     }
 
     print(hyperparameter_index)
-
 }
 
-write.csv(
-    metrics_table,
-    paste0(
-        "Results/Daily_Temperature/train_test_80_20_2025/",
-        "IDW_RF_config.csv"
-    ),
-    row.names = FALSE
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "IDW_RF_config.csv"
+#     ),
+#     row.names = FALSE
+# )
+
+## I've landed on idp = 1, nmax = 15, mtry = 5, min.node.size = 1,
+## east + north + points5 + dist2c + exp25k +
+## n5 + e5 + s5 + w5 + aspect_10km
+
+
+# %%
+
+## Plot grids and check computation time
+
+times <- c()
+
+plot_grid <- grid_geodata[c("east", "north")]
+
+for (date_index in seq_len(nrow(dates))) {
+
+    st <- Sys.time()
+
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data,
+            dates,
+            date_index,
+            experiment_type = "all_data"
+        )
+
+    y_hat_maxt <-
+        regression_IDW(
+            daily_temperature_data,
+            grid_geodata,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            regression_method = MLR,
+            formula = f_maxt,
+
+            idp = 1,
+            nmax = 15
+        )$var1.pred
+
+    y_hat_mint <-
+        regression_IDW(
+            daily_temperature_data,
+            grid_geodata,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            regression_method = MLR,
+            formula = f_mint,
+
+            idp = 1,
+            nmax = 15
+        )$var1.pred
+
+    grid_geodata$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    grid_geodata$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
+        grid_geodata,
+        daily_temperature_data,
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/IDW_MLR/",
+            "IDW_MLR_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    et <- Sys.time()
+    times <- c(times, et - st)
+
+    print(
+        paste0(
+            date_index, "    ",
+            current_day, "-",
+            current_month, "-",
+            current_year
+        )
+    )
+}
+
+print(
+    paste(
+        "Mean Time",
+        mean(times)
+    )
 )

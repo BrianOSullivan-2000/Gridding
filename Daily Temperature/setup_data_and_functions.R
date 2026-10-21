@@ -174,14 +174,14 @@ collect_metrics <- function(
 
     if (missing(metrics_table) || is.null(metrics_table)) {
         rbind(
-            new_row_maxt,
-            new_row_mint
+            new_row_mint,
+            new_row_maxt
         )
     } else {
         bind_rows(
             metrics_table,
-            new_row_maxt,
-            new_row_mint
+            new_row_mint,
+            new_row_maxt
         )
     }
 }
@@ -285,61 +285,57 @@ update_daily_predictions <- function(
 }
 
 
+## Temperature palette pulled from swalsh scripts on sol
+temperature_palette <- c(
+    "#502020", "#611838", "#721050", "#830868", "#940080",
+    "#000080", "#00009F", "#0000BF", "#0000DF", "#0000FF",
+    "#566CF2", "#6781F0", "#7997ED", "#8AACEB", "#9BC2E8",
+    "#91B7CE", "#87ACB5", "#7DA19B", "#739682", "#698B69",
+    "#76AC76", "#7CBC7C", "#83CD83", "#89DD89", "#90EE90",
+    "#A8D56A", "#B4C958", "#C1BD45", "#CDB132", "#DAA520",
+    "#B1700D", "#C5740A", "#D87806", "#EB7C03", "#FF8000",
+    "#FF5000", "#DF3C00", "#BF2800", "#9F1400", "#800000",
+    "#993300", "#B26600", "#CC9900", "#E5CC00", "#FFFF00"
+)
+temperature_idx_sequence <- cbind(
+    seq(-10, 34, 1), seq(1, 45, 1)
+)
+
 
 daily_temperature_plot <- function(
     grid, daily_temperature_data, plot_destination
 ) {
 
-    require(paletteer)
     require(cowplot)
 
-    full_breaks <- c(
-        -19, -14, -10, -7,
-        seq(-5, 26),
-        28, 31, 35
+    cut_maxt <- seq(
+        trunc(min(grid$maxt)) - 1,
+        trunc(max(grid$maxt)) + 1,
+        1
     )
-    full_palette <- colorRampPalette(
-        colors = paletteer_c(
-            palette = "grDevices::Zissou 1",
-            n = length(full_breaks)
-        )
-    )(
-        length(full_breaks)
+    cut_mint <- seq(
+        trunc(min(grid$mint)) - 1,
+        trunc(max(grid$mint)) + 1,
+        1
     )
 
-    min_max <- min(c(
-        grid$maxt,
-        daily_temperature_data$maxt
-    ))
-    max_max <- max(c(
-        grid$maxt,
-        daily_temperature_data$maxt
-    ))
-    max_idx <-
-        findInterval(
-            min_max, full_breaks
-        ):findInterval(
-            max_max, full_breaks
-        )
-    max_breaks <- full_breaks[max_idx]
-    max_palette <- full_palette[max_idx]
+    sequence_maxt <- subset(
+        temperature_idx_sequence,
+        temperature_idx_sequence[, 1] >=
+            min(cut_maxt) & temperature_idx_sequence[, 1] <= max(cut_maxt)
+    )
+    sequence_mint <- subset(
+        temperature_idx_sequence,
+        temperature_idx_sequence[, 1] >=
+            min(cut_mint) & temperature_idx_sequence[, 1] <= max(cut_mint)
+    )
 
-    min_min <- min(c(
-        grid$mint,
-        daily_temperature_data$mint
-    ))
-    max_min <- max(c(
-        grid$mint,
-        daily_temperature_data$mint
-    ))
-    min_idx <-
-        findInterval(
-            min_min, full_breaks
-        ):findInterval(
-            max_min, full_breaks
-        )
-    min_breaks <- full_breaks[min_idx]
-    min_palette <- full_palette[min_idx]
+    max_palette <- temperature_palette[
+        min(sequence_maxt[, 2]):max(sequence_maxt[, 2])
+    ]
+    min_palette <- temperature_palette[
+        min(sequence_mint[, 2]):max(sequence_mint[, 2])
+    ]
 
     maxt_plot <-
         base_grid_plot(
@@ -349,7 +345,7 @@ daily_temperature_plot <- function(
             stations = daily_temperature_data,
             grid_size = 0.07,
             station_size = 1.5,
-            breaks = max_breaks,
+            breaks = sequence_maxt[, 1],
             colour_palette = max_palette
         )
 
@@ -361,7 +357,7 @@ daily_temperature_plot <- function(
             stations = daily_temperature_data,
             grid_size = 0.07,
             station_size = 1.5,
-            breaks = min_breaks,
+            breaks = sequence_mint[, 1],
             colour_palette = min_palette
         )
 
@@ -374,15 +370,7 @@ daily_temperature_plot <- function(
         width = 14,
         height = 7
     )
+
 }
-
-# Some palette options
-# "grDevices::Zissou 1"
-# "oompaBase::jetColors"
-# "pals::warmcool"
-# "pals::jet"
-# "pals::kovesi.rainbow_bgyr_35_85_c73"
-
-
 
 # save.image(file = "Data/Daily_Temperature/train_test_80_20_2025.RData")

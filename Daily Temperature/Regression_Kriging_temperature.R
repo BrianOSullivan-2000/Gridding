@@ -1,7 +1,11 @@
 
 ## Validation tests for daily temperature grids ##
-## Inverse Distance Weighting ##
-## Simple method that uses weighted average based on inverse distance ##
+
+## Regression Kriging ##
+
+## Step 1 is regression, fit trend to data based on geographic covariates ##
+## Step 2 is interpolation with kriging, assuminig regression residuals   ##
+##  follow a Gaussian Process (with spatial dependence)                   ##
 
 # %%
 
@@ -13,16 +17,57 @@ load("Data/Daily_Temperature/train_test_80_20_2025.RData")
 
 # %%
 
+## Regression Formulae
+
+f_maxt <- as.formula(
+    paste(
+        "y_maxt ~",
+        paste(
+            "east", "north",
+            "points5",
+            "dist2c",
+            "aspect_10km",
+            "n5", "e5", "s5", "w5",
+            # "ne5", "nw5", "se5", "sw5",
+            sep = " + "
+        )
+    )
+)
+
+f_mint <- as.formula(
+    paste(
+        "y_mint ~",
+        paste(
+            "east", "north",
+            "points5",
+            "dist2c",
+            "aspect_10km",
+            "n5", "e5", "s5", "w5",
+            # "ne5", "nw5", "se5", "sw5",
+            sep = " + "
+        )
+    )
+)
+
+# %%
+
+source("regression/MLR.R")
+
 ## Set up grid search for hyperparameters
-## Set up grid search for hyperparameters
-cutoffs <- c(200000, 250000, 300000, 350000, 400000)
+cutoffs <- c(200000, 300000, 400000)
 widths <- c(5000, 10000, 15000, 20000, 25000)
-hyperparameters <- expand.grid(cutoff = cutoffs, width = widths)
+vgm_models <- c("Sph", "Exp", "Mat", "Gau")
+hyperparameters <- expand.grid(
+    cutoff = cutoffs, width = widths, vgm_model = vgm_models
+)
 
 for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
 
     cutoff <- hyperparameters[hyperparameter_index, ]$cutoff
     width <- hyperparameters[hyperparameter_index, ]$width
+    vgm_model <- as.character(
+        hyperparameters[hyperparameter_index, ]$vgm_model
+    )
 
     for (date_index in seq_len(nrow(dates))) {
 
@@ -31,31 +76,41 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
                 temperature_data, dates, date_index
             )
 
-        vgm_model <- "Gau"
-
         y_hat_maxt <-
-            ordinary_kriging(
-                daily_temperature_data$train$y_maxt,
+            regression_kriging(
+                daily_temperature_data$train,
+                daily_temperature_data$test,
                 daily_temperature_data$train[c("east", "north")],
                 daily_temperature_data$test[c("east", "north")],
 
+                regression_method = MLR,
+                formula = f_maxt,
+
                 cutoff = cutoff,
                 width = width,
-                flex_fit = TRUE,
                 vgm_model = vgm_model,
+
+                nmax = Inf,
+                flex_fit = TRUE,
                 debug.level = 0
             )$var1.pred
 
         y_hat_mint <-
-            ordinary_kriging(
-                daily_temperature_data$train$y_mint,
+            regression_kriging(
+                daily_temperature_data$train,
+                daily_temperature_data$test,
                 daily_temperature_data$train[c("east", "north")],
                 daily_temperature_data$test[c("east", "north")],
 
+                regression_method = MLR,
+                formula = f_mint,
+
                 cutoff = cutoff,
                 width = width,
-                flex_fit = TRUE,
                 vgm_model = vgm_model,
+
+                nmax = Inf,
+                flex_fit = TRUE,
                 debug.level = 0
             )$var1.pred
 
@@ -72,7 +127,11 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
     metrics_table <-
         collect_metrics(
             metrics_table,
-            paste0("OK cutoff-", cutoff, " width-", width),
+            paste0(
+                "OK cutoff-", cutoff,
+                " width-", width,
+                " vgm_model-", vgm_model
+            ),
             temperature_data$test$maxt,
             temperature_data$test$predicted_maxt,
             temperature_data$test$mint,
@@ -82,100 +141,360 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
     print(hyperparameter_index)
 }
 
-write.csv(
-    metrics_table,
-    paste0(
-        "Results/Daily_Temperature/train_test_80_20_2025/",
-        "OK_Gau_config.csv"
-    ),
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "RK_config.csv"
+#     ),
+#     row.names = FALSE
+# )
 
 
 # %%
 
-## Plot grids and check computation time
+source("regression/MLR.R")
 
-times <- c()
 
-plot_grid <- grid_geodata[c("east", "north")]
+cutoff <- 400000
+width <- 20000
+vgm_model <- "Exp"
 
 for (date_index in seq_len(nrow(dates))) {
 
-    st <- Sys.time()
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data, dates, date_index
+        )
 
-    current_day <- dates[date_index, ]$day
-    current_month <- dates[date_index, ]$month
-    current_year <- dates[date_index, ]$year
+    y_hat_maxt <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = MLR,
+            formula = f_maxt,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0
+        )$var1.pred
+
+    y_hat_mint <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = MLR,
+            formula = f_mint,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0
+        )$var1.pred
+
+    temperature_data <-
+        update_daily_predictions(
+            temperature_data,
+            y_hat_maxt,
+            y_hat_mint,
+            dates,
+            date_index
+        )
+}
+
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "Regression Kriging Exp",
+        temperature_data$test$maxt,
+        temperature_data$test$predicted_maxt,
+        temperature_data$test$mint,
+        temperature_data$test$predicted_mint
+    )
+
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "RK_Exp.csv"
+#     ),
+#     row.names = FALSE
+# )
+
+# %%
+
+# Elastic-net Regularization
+
+source("regression/elastic-net.R")
+
+cutoff <- 400000
+width <- 20000
+alpha <- 0.1
+vgm_model <- "Exp"
+
+for (date_index in seq_len(nrow(dates))) {
 
     daily_temperature_data <-
         get_daily_temperature_data(
+            temperature_data, dates, date_index
+        )
+
+    y_hat_maxt <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = Elastic_Net,
+            formula = f_maxt,
+
+            alpha = alpha,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0
+        )$var1.pred
+
+    y_hat_mint <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = Elastic_Net,
+            formula = f_mint,
+
+            alpha = alpha,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0
+        )$var1.pred
+
+    temperature_data <-
+        update_daily_predictions(
             temperature_data,
+            y_hat_maxt,
+            y_hat_mint,
             dates,
-            date_index,
-            experiment_type = "all_data"
+            date_index
         )
-
-    vgm_model <- "Sph"
-    cutoff <- 400000
-    width <- 20000
-    nmax <- Inf
-
-    y_hat_maxt <-
-        ordinary_kriging(
-            daily_temperature_data$y_maxt,
-            daily_temperature_data[c("east", "north")],
-            grid_geodata[c("east", "north")],
-
-            cutoff = cutoff,
-            width = width,
-            flex_fit = TRUE,
-            vgm_model = vgm_model,
-            nmax = nmax,
-            debug.level = 0
-        )$var1.pred
-
-    y_hat_maxt <-
-        ordinary_kriging(
-            daily_temperature_data$y_mint,
-            daily_temperature_data[c("east", "north")],
-            grid_geodata[c("east", "north")],
-
-            cutoff = cutoff,
-            width = width,
-            flex_fit = TRUE,
-            vgm_model = vgm_model,
-            nmax = nmax,
-            debug.level = 0
-        )$var1.pred
-
-
-    grid_geodata$maxt <-
-        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
-
-    grid_geodata$mint <-
-        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
-
-    daily_temperature_plot(
-        grid_geodata,
-        daily_temperature_data,
-        plot_destination = paste0(
-            "Figures/Daily_Temperature/",
-            "Ordinary_Kriging_Sph/Ordinary_Kriging_Sph_",
-            current_year, "_",
-            sprintf("%02d", current_month), "_",
-            sprintf("%02d", current_day),
-            ".jpg"
-        )
-    )
-
-    et <- Sys.time()
-    times <- c(times, et - st)
 }
 
-print(
-    paste(
-        "Mean Time",
-        mean(times)
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "RK Exp ENET",
+        temperature_data$test$maxt,
+        temperature_data$test$predicted_maxt,
+        temperature_data$test$mint,
+        temperature_data$test$predicted_mint
     )
-)
+
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "RK_ENET.csv"
+#     ),
+#     row.names = FALSE
+# )
+
+# %%
+
+# Generalised Least Squares
+
+source("regression/GLS.R")
+
+cutoff <- 400000
+width <- 20000
+vgm_model <- "Exp"
+
+for (date_index in seq_len(nrow(dates))) {
+
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data, dates, date_index
+        )
+
+    y_hat_maxt <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = GLS,
+            formula = f_maxt,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0
+        )$var1.pred
+
+    y_hat_mint <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = GLS,
+            formula = f_mint,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0
+        )$var1.pred
+
+    temperature_data <-
+        update_daily_predictions(
+            temperature_data,
+            y_hat_maxt,
+            y_hat_mint,
+            dates,
+            date_index
+        )
+}
+
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "RK GLS",
+        temperature_data$test$maxt,
+        temperature_data$test$predicted_maxt,
+        temperature_data$test$mint,
+        temperature_data$test$predicted_mint
+    )
+
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "RK_GLS.csv"
+#     ),
+#     row.names = FALSE
+# )
+
+# %%
+
+# Random Forests Grid Search
+
+source("regression/random_forest.R")
+
+cutoff <- 400000
+width <- 20000
+vgm_model <- "Exp"
+
+
+for (date_index in seq_len(nrow(dates))) {
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data, dates, date_index
+        )
+
+    y_hat_maxt <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = Random_Forest,
+            formula = f_maxt,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0,
+
+            mtry = 5,
+            min.node.size = 1
+
+        )$var1.pred
+
+
+    y_hat_mint <-
+        regression_kriging(
+            daily_temperature_data$train,
+            daily_temperature_data$test,
+            daily_temperature_data$train[c("east", "north")],
+            daily_temperature_data$test[c("east", "north")],
+
+            regression_method = Random_Forest,
+            formula = f_mint,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0,
+
+            mtry = 5,
+            min.node.size = 1
+        )$var1.pred
+
+    temperature_data <-
+        update_daily_predictions(
+            temperature_data,
+            y_hat_maxt,
+            y_hat_mint,
+            dates,
+            date_index
+        )
+}
+
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "Regression Kriging Exp Random Forest",
+        temperature_data$test$maxt,
+        temperature_data$test$predicted_maxt,
+        temperature_data$test$mint,
+        temperature_data$test$predicted_mint
+    )
+
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "RK_RF.csv"
+#     ),
+#     row.names = FALSE
+# )
