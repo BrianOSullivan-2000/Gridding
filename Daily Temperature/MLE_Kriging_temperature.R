@@ -53,7 +53,7 @@ f_mint <- as.formula(
 
 # %%
 
-vgm_model <- "Mat"
+vgm_model <- "Sph"
 
 for (date_index in seq_len(nrow(dates))) {
 
@@ -72,9 +72,9 @@ for (date_index in seq_len(nrow(dates))) {
             cov_function = vgm_model,
             formula = f_maxt,
 
-            init_pars = c(0.2, 0.1, 300, 1),
-            lower = c(0.05, 0, 50, 0.2),
-            upper = c(0.8, 0.4, 800, 2.5)
+            init_pars = c(0.2, 0.1, 300),
+            lower = c(0.05, 0, 50),
+            upper = c(0.8, 0.4, 800)
 
         )$pred
 
@@ -88,9 +88,9 @@ for (date_index in seq_len(nrow(dates))) {
             cov_function = vgm_model,
             formula = f_mint,
 
-            init_pars = c(0.2, 0.1, 300, 1),
-            lower = c(0.05, 0, 50, 0.2),
-            upper = c(0.8, 0.4, 800, 2.5)
+            init_pars = c(0.2, 0.1, 300),
+            lower = c(0.05, 0, 50),
+            upper = c(0.8, 0.4, 800)
 
         )$pred
 
@@ -122,7 +122,106 @@ write.csv(
     metrics_table,
     paste0(
         "Results/Daily_Temperature/train_test_80_20_2025/",
-        "RK_", vgm_model, "_MLE_safe.csv"
+        "RK_", vgm_model, "_MLE.csv"
     ),
     row.names = FALSE
+)
+
+
+# %%
+
+## Plot grids and check computation time
+
+times <- c()
+
+plot_grid <- grid_geodata[c("east", "north")]
+
+vgm_model <- "Sph"
+
+for (date_index in seq_len(nrow(dates))[32:200]) {
+
+    st <- Sys.time()
+
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data,
+            dates,
+            date_index,
+            experiment_type = "all_data"
+        )
+
+    y_hat_maxt <-
+        MLE_kriging(
+            daily_temperature_data,
+            grid_geodata,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            cov_function = vgm_model,
+            formula = f_maxt,
+
+            init_pars = c(0.2, 0.1, 300),
+            lower = c(0.05, 0, 50),
+            upper = c(0.8, 0.4, 800)
+        )$pred
+
+    y_hat_mint <-
+        MLE_kriging(
+            daily_temperature_data,
+            grid_geodata,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            cov_function = vgm_model,
+            formula = f_mint,
+
+            init_pars = c(0.2, 0.1, 300),
+            lower = c(0.05, 0, 50),
+            upper = c(0.8, 0.4, 800)
+        )$pred
+
+
+    plot_grid$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    plot_grid$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
+        plot_grid,
+        daily_temperature_data,
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/",
+            "MLE_Kriging_", vgm_model,
+            "/MLE_Kriging_", vgm_model, "_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    et <- Sys.time()
+    times <- c(times, et - st)
+
+    print(
+        paste0(
+            date_index, "    ",
+            current_day, "-",
+            current_month, "-",
+            current_year
+        )
+    )
+}
+
+
+print(
+    paste(
+        "Mean Time",
+        mean(times)
+    )
 )
