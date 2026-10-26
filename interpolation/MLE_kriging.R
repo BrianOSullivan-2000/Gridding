@@ -1,4 +1,3 @@
-
 ################################################################################
 
 # MLE Kriging
@@ -11,10 +10,17 @@
 
 ################################################################################
 
-MLE_kriging <- function(df, new_df, coords, new_coords,
-                        init_pars, lower, upper,
-                        formula = y ~ 1, cov_function = "Mat", maxit = 1000,
-                        useRcpp = FALSE, return_model = FALSE) {
+MLE_kriging <- function(
+
+    df, new_df, coords, new_coords,
+    init_pars, lower, upper,
+    formula = y ~ 1, cov_function = "Mat", maxit = 1000,
+    useRcpp = FALSE, return_model = FALSE,
+    return_CI = FALSE,
+    CI_level = 0.95,
+    CI_type = c("simple", "trend", "full")
+
+) {
 
     # df                      -data frame of response variable and covariates
     # new_df                  -data frame of covariates for grid locations
@@ -33,6 +39,12 @@ MLE_kriging <- function(df, new_df, coords, new_coords,
     # useRcpp                 -if true, will use faster functions coded in C++
     # return_model            -if true, just return the fitted spatial model
     #                         doesn't work with useRcpp
+
+    # return_CI               -if true, return prediction confidence intervals
+    # CI_type                 -level of uncertainty, based on assumptions
+    #                         about parameters. "trend" assumes beta is
+    #                         estimated. "full" includes spatial params
+    # CI_level                -level of confidence
 
     # Load in necessary packages
     require(sp)
@@ -63,18 +75,18 @@ MLE_kriging <- function(df, new_df, coords, new_coords,
     # Parameters and covariance function
     if (cov_function %in% c("Exp", "Gau", "Sph")) {
         if (missing(init_pars)) {
-            pars = c(1.5, 0.5, 50)
-            lower = c(0.001, 0, 1)
-            upper = c(Inf, 400, Inf)
+            pars <- c(1.5, 0.5, 50)
+            lower <- c(0.001, 0, 1)
+            upper <- c(Inf, 400, Inf)
         } else if (length(init_pars) != 3) {
             stop("Wrong number of parameters (should be three)")
         }
     }
     if (cov_function == "Mat") {
         if (missing(init_pars)) {
-            pars = c(1.5, 0.5, 50, 1.5)
-            lower = c(0.001, 0, 1, 0.3)
-            upper = c(Inf, Inf, 400, 2.5)
+            pars <- c(1.5, 0.5, 50, 1.5)
+            lower <- c(0.001, 0, 1, 0.3)
+            upper <- c(Inf, Inf, 400, 2.5)
         } else if (length(init_pars) != 4) {
             stop("Wrong number of parameters (should be four)")
         }
@@ -126,23 +138,67 @@ MLE_kriging <- function(df, new_df, coords, new_coords,
         # Solve for regression parameters
         betahat <- solve(t(X) %*% Vinv %*% X) %*% (t(X) %*% (Vinv %*% y))
 
+        new_df$pred <- as.numeric(
+            new_X %*% betahat + t(cross_V) %*%
+                (Vinv %*% (y - X %*% betahat))
+        )
+
         if (return_model) {
             return(list("pars" = pars, "betahat" = betahat))
         }
 
-        new_df$pred <- as.numeric(new_X %*% betahat + t(cross_V) %*%
-                                      (Vinv %*% (y - X %*% betahat)))
+        if (return_CI) {
+            CI_type <- match.arg(CI_type)
+
+            R <- chol(V)
+            batch_size <- 2000
+
+            vVv <- numeric(nrow(new_df))
+
+            batch_indices <- split(
+                seq_len(nrow(new_df)),
+                ceiling(seq_len(nrow(new_df)) / batch_size)
+            )
+
+            for (batch_idx in batch_indices) {
+                A <- backsolve(R, forwardsolve(t(R), cross_V[, batch_idx]))
+                vVv[batch_idx] <- colSums(cross_V[, batch_idx] * A)
+            }
+
+            if (CI_type == "simple") {
+                variance <- pars[1] - vVv
+
+            }
+
+            if (CI_type == "trend") {
+                d <- new_X - (t(cross_V) %*% (Vinv %*% X))
+                M <- solve(t(X) %*% (Vinv %*% X))
+                dMd <- numeric(nrow(new_df))
+
+                for (batch_idx in batch_indices) {
+                    d_batch <- d[batch_idx, , drop = FALSE]
+                    dM <- d_batch %*% M
+                    dMd[batch_idx] <- rowSums(dM * d_batch)
+                }
+
+                variance <- pars[1] - vVv + dMd
+            }
+
+            variance <- pmax(variance, 0)
+            standard_error <- sqrt(variance)
+
+            z <- qnorm(1 - (1 - CI_level) / 2)
+            new_df$CI_lower <- new_df$pred - z * standard_error
+            new_df$CI_upper <- new_df$pred + z * standard_error
+        }
     }
 
     new_df
 }
 
 
-
-
 spatial_likelihood <- function(pars, ds, y, X, cov_function,
                                beta = NULL, useRcpp = FALSE) {
-
     if (useRcpp) {
         if (is.null(beta)) {
             beta <- numeric(0)
@@ -178,8 +234,6 @@ spatial_likelihood <- function(pars, ds, y, X, cov_function,
 
     negloglik
 }
-
-
 
 
 ## The four different covariance functions available

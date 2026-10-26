@@ -1,4 +1,3 @@
-
 ## I'm happy with MLE Kriging as a findal gridding method ##
 ## for the monthly rainfall grids (modern + historic)     ##
 
@@ -8,7 +7,7 @@
 
 ## First read in our rainfall data
 rainfall_data <- read.csv(
-    "Data/Monthly_Rainfall/monthly_rain_ROI_NI_1883-1940.csv"
+    "Data/Monthly_Rainfall/monthly_rain_ROI_NI_1878-2023.csv"
 )
 ## Remove any missing values
 rainfall_data <- rainfall_data[!is.na(rainfall_data$rain), ]
@@ -25,11 +24,10 @@ source("interpolation/MLE_kriging.R")
 # %%
 
 compute_monthly_grid <- function(
-    historic_rain,
-    current_year,
-    current_month
+  historic_rain,
+  current_year,
+  current_month
 ) {
-
     require(dplyr)
 
     ## Get data for current month
@@ -65,11 +63,8 @@ compute_monthly_grid <- function(
             prediction_grid,
             monthly_rain_data[c("east", "north")],
             prediction_grid[c("east", "north")],
-
             cov_function = "Exp",
-
             formula = f,
-
             init_pars = c(0.001, 0.0001, 150),
             lower = c(1e-8, 0, 10),
             upper = c(0.05, 0.01, 500)
@@ -96,7 +91,9 @@ compute_monthly_grid <- function(
 # %%
 
 ## Set target years
-years <- 1883:1940
+years <- 1921:1940
+
+historic_rain <- rainfall_data
 
 ## Final grid that we'll save data to
 final_grid <- prediction_grid[c("east", "north")]
@@ -114,11 +111,22 @@ for (current_year in years) {
     ## Loop through each month
     for (current_month in 1:12) {
         ## Compute the grid
+
+        krig_time <- Sys.time()
+
         result <- compute_monthly_grid(
             historic_rain,
             current_year,
             current_month
         )
+
+        print(paste0(
+            "#Stations = ", nrow(
+                historic_rain |>
+                    filter(year == current_year, month == current_month)
+            ),
+            " Krig time = ", round(Sys.time() - krig_time, 2)
+        ))
 
         ## Add gridded values to output data
         final_grid[, time_idx + 2] <- result$rain
@@ -131,6 +139,8 @@ for (current_year in years) {
 
     print(paste("year", current_year))
     print(Sys.time() - year_st)
+
+    stop()
 }
 
 # write.csv(

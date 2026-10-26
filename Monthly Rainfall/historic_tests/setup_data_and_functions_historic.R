@@ -247,4 +247,87 @@ monthly_rain_plot <- function(grid, monthly_rain_data, plot_destination) {
     )
 }
 
+monthly_rain_CI_plot <- function(
+    grid,
+    monthly_rain_data,
+    plot_destination,
+    CI_level = 0.95
+
+) {
+
+    require(cowplot)
+
+    rain_breaks <- c(
+        0, 20, 50, 100, 150, 200, 250, 300, 400, 500, 600, 800
+    )
+
+    rain_plot <-
+        base_grid_plot(
+            grid,
+            island_outline,
+            response = "rain",
+            stations = monthly_rain_data,
+            station_size = 1.5,
+            breaks = rain_breaks,
+            bias = 0.5
+        )
+
+
+    grid$lower_diff <-
+        grid$CI_lower - grid$rain
+    lower_CI_plot <-
+        base_grid_plot(
+            grid,
+            island_outline,
+            response = "lower_diff",
+            colour_palette = c(
+                "#920a00",
+                "#f03e32",
+                "#c44d45",
+                "#df9f9b",
+                "#f7f4f4"
+            ),
+            breaks = c(
+                -200, -150, -100, seq(-80, -10, by = 10), -5, -2, 0
+            )
+        )
+
+    grid$upper_diff <-
+        grid$CI_upper - grid$rain
+    upper_CI_plot <-
+        base_grid_plot(
+            grid,
+            island_outline,
+            response = "upper_diff",
+            colour_palette = c(
+                "#e8eaff",
+                "#72c0ff",
+                "#507fd6",
+                "#465be3",
+                "#440091"
+            ),
+            breaks = c(
+                0, 2, 5, seq(10, 80, by = 10), 100, 150, 200
+            )
+        )
+
+    full_plot <-
+        plot_grid(
+            rain_plot,
+            lower_CI_plot,
+            upper_CI_plot,
+            ncol = 3
+        )
+
+    ggsave(
+        plot_destination,
+        full_plot,
+        width = 21,
+        height = 7
+    )
+}
+
+
+
+
 # save.image(file = "Data/Monthly_Rainfall/train_test_80_20_1883-1940.RData")

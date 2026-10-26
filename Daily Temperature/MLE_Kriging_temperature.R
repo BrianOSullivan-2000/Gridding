@@ -118,14 +118,14 @@ metrics_table <-
         temperature_data$test$predicted_mint
     )
 
-write.csv(
-    metrics_table,
-    paste0(
-        "Results/Daily_Temperature/train_test_80_20_2025/",
-        "RK_", vgm_model, "_MLE.csv"
-    ),
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Temperature/train_test_80_20_2025/",
+#         "RK_", vgm_model, "_MLE.csv"
+#     ),
+#     row.names = FALSE
+# )
 
 
 # %%

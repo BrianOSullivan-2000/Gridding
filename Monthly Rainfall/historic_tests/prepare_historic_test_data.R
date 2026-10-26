@@ -151,3 +151,107 @@ train_df <- bind_rows(train_df)
 #     "Data/Monthly_Rainfall/folds/test_split_1883-1940.csv",
 #     row.names = FALSE
 # )
+
+# %%
+
+## I want to make grids from 1883-2023, but many stations in
+## the full historic data set don't have LTAs
+
+## So I'll get them now and update the corresponding dfs
+
+library(sf)
+library(gstat)
+
+## Read in full dfs
+
+ROI_rainfall <- read.csv(
+    paste0(
+        "Data/Monthly_rainfall/historic_data/",
+        "roi_monthly_rain_1792-2024.csv"
+    )
+) |>
+    dplyr::rename(rain = tot) |>
+    dplyr::select(stno, year, month, rain, ind)
+NI_rainfall <- read.csv(
+    paste0(
+        "Data/Monthly_rainfall/historic_data/",
+        "ni_monthly_rain_1836-2023.csv"
+    )
+) |>
+    dplyr::rename(rain = tot, stno = nistno) |>
+    dplyr::select(stno, year, month, rain, ind)
+
+rainfall <- bind_rows(ROI_rainfall, NI_rainfall)
+
+## geodata first
+## find stnos in historic data that don't have geodata
+
+ROI_geodata <- read.csv(
+    paste0(
+        "Data/Monthly_rainfall/historic_data/",
+        "roi_stations_geo_data.csv"
+    )
+)
+NI_geodata <- read.csv(
+    paste0(
+        "Data/Monthly_rainfall/historic_data/",
+        "ni_stations_geo_data.csv"
+    )
+)
+
+station_geodata <- bind_rows(
+    ROI_geodata,
+    NI_geodata
+)
+
+## There's only 2 so that's good
+stno_drop_no_geodata <-
+    unique(rainfall$stno)[
+        !(unique(rainfall$stno) %in% station_geodata$STNO)
+    ]
+
+# %%
+
+## Now lets check LTAs
+station_LTAs <- bind_rows(
+    read.csv(
+        paste0(
+            "Data/Monthly_Rainfall/historic_data/",
+            "roi_stations_LTA8110_data.csv"
+        )
+    ),
+    read.csv(
+        paste0(
+            "Data/Monthly_Rainfall/historic_data/",
+            "ni_stations_LTA8110_data.csv"
+        )
+    )
+) |>
+    dplyr::rename(stno = STNO) |>
+    rename_with(
+        ~ sub("rr8110m", "m_", .x),
+        matches("^rr8110m")
+    ) |>
+    dplyr::select(-east, -north)
+
+## It's the same two! I'm just going to drop these
+stno_no_LTAs <-
+    unique(rainfall$stno)[
+        !(unique(rainfall$stno) %in% station_LTAs$stno)
+    ]
+
+
+## Save the full monthly dfs
+ROI_rainfall <- ROI_rainfall |>
+    dplyr::select(stno, year, month, rain, ind) |>
+    filter(year >= 1878, year <= 2023)
+
+NI_rainfall <- NI_rainfall |>
+    dplyr::select(stno, year, month, rain, ind) |>
+    filter(year >= 1878, year <= 2023)
+
+# write.csv(
+#     bind_rows(ROI_rainfall, NI_rainfall),
+#     "Data/Monthly_Rainfall/monthly_rain_ROI_NI_1878-2023.csv",
+#     row.names = FALSE
+# )
