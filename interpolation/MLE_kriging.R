@@ -110,13 +110,26 @@ MLE_kriging <- function(
         ), new_df
     )
 
+    if (return_CI) {
+        CI_type <- match.arg(CI_type)
+
+        if (CI_type == "full") {
+            hessian <- TRUE
+        } else {
+            hessian <- FALSE
+        }
+    } else {
+        hessian <- FALSE
+    }
+
     # Optimize likelihood numerically to get covariance parameters
     soln <- solver(
         par = pars, fn = spatial_likelihood, ds = ds,
         y = y, X = X, cov_function = cov_function,
         lower = lower, upper = upper,
         control = list(maxit = maxit, parscale = pars, factr = 1e11),
-        method = "L-BFGS-B", useRcpp = useRcpp
+        method = "L-BFGS-B", useRcpp = useRcpp,
+        hessian = hessian
     )
     pars <- soln$par
 
@@ -143,12 +156,7 @@ MLE_kriging <- function(
                 (Vinv %*% (y - X %*% betahat))
         )
 
-        if (return_model) {
-            return(list("pars" = pars, "betahat" = betahat))
-        }
-
         if (return_CI) {
-            CI_type <- match.arg(CI_type)
 
             R <- chol(V)
             batch_size <- 2000
@@ -167,10 +175,10 @@ MLE_kriging <- function(
 
             if (CI_type == "simple") {
                 variance <- pars[1] - vVv
-
             }
 
             if (CI_type == "trend") {
+
                 d <- new_X - (t(cross_V) %*% (Vinv %*% X))
                 M <- solve(t(X) %*% (Vinv %*% X))
                 dMd <- numeric(nrow(new_df))
@@ -181,7 +189,84 @@ MLE_kriging <- function(
                     dMd[batch_idx] <- rowSums(dM * d_batch)
                 }
 
-                variance <- pars[1] - vVv + dMd
+                variance <- pars[1] - vVv + dMd + pars[2]
+            }
+
+            if (CI_type == "full") {
+
+                stop(paste0(
+                    "Getting CI with the full approach",
+                    " is still under development"
+                ))
+            #     require(MASS)
+
+            #     ## Get varcov matrix of covariance params
+            #     vcov_theta <- solve(soln$hessian)
+
+            #     B <- 200
+            #     var_sims <- matrix(
+            #         NA,
+            #         nrow = B, ncol = nrow(new_df)
+            #     )
+            #     pred_sims <- var_sims
+
+            #     theta_samples <- mvrnorm(
+            #         n = B,
+            #         mu = pars,
+            #         Sigma = vcov_theta
+            #     )
+
+            #     batch_size <- 2000
+            #     batch_indices <- split(
+            #         seq_len(nrow(new_df)),
+            #         ceiling(seq_len(nrow(new_df)) / batch_size)
+            #     )
+            #     vVv_star <- numeric(nrow(new_df))
+            #     dMd_star <- numeric(nrow(new_df))
+
+            #     for (b in seq_len(B)) {
+            #         theta_star <- theta_samples[b, ]
+            #         if (theta_star[3] < 5) {
+            #             theta_star[3] <- 5
+            #         }
+
+            #         V_star <- fn(theta_star, ds)
+            #         cross_V_star <- fn(theta_star, cross_ds)
+            #         R_star <- chol(V_star)
+
+            #         Vinv_star <- solve(V_star)
+            #         d_star <-
+            #             new_X - (t(cross_V_star) %*% (Vinv_star %*% X))
+            #         M_star <- solve(t(X) %*% (Vinv_star %*% X))
+
+            #         for (batch_idx in batch_indices) {
+            #             A_star <- backsolve(
+            #                 R_star,
+            #                 forwardsolve(
+            #                     t(R), cross_V_star[, batch_idx]
+            #                 )
+            #             )
+            #             vVv_star[batch_idx] <-
+            #                 colSums(cross_V_star[, batch_idx] * A_star)
+
+            #             d_batch <- d_star[batch_idx, , drop = FALSE]
+            #             dM_star <- d_batch %*% M_star
+            #             dMd_star[batch_idx] <- rowSums(dM_star * d_batch)
+            #         }
+
+            #         betahat_star <-
+            #             solve(t(X) %*% Vinv_star %*% X) %*%
+            #             (t(X) %*% (Vinv_star %*% y))
+            #         pred_sims[b, ] <-
+            #             new_X %*% betahat_star + t(cross_V_star) %*%
+            #             (Vinv_star %*% (y - X %*% betahat_star))
+
+            #         var_sims[b, ] <-
+            #             theta_star[1] - vVv_star + dMd_star
+            #     }
+
+            #     variance <- colMeans(var_sims) +
+            #         apply(pred_sims, 2, var) + pars[2]
             }
 
             variance <- pmax(variance, 0)
@@ -193,7 +278,11 @@ MLE_kriging <- function(
         }
     }
 
-    new_df
+    return(new_df)
+
+    if (return_model) {
+        list("pars" = pars, "betahat" = betahat)
+    }
 }
 
 

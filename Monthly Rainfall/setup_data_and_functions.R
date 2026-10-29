@@ -149,13 +149,14 @@ get_monthly_rain_data <- function(
 
 
 ## Function that takes y_hat (predicted rain) and adds it to test set
-## Function that takes y_hat (predicted rain) and adds it to test set
 update_monthly_predictions <- function(
     rain_data,
     y_hat,
     dates,
     date_index,
-    baseline = FALSE
+    baseline = FALSE,
+    CI_lower = NULL,
+    CI_upper = NULL
 ) {
     monthly_rain_data <- get_monthly_rain_data(
         rain_data, dates, date_index
@@ -164,6 +165,14 @@ update_monthly_predictions <- function(
     if (!baseline) {
         monthly_rain_data$test <- monthly_rain_data$test |>
             mutate(predicted_rain = (y_hat) * LTA)
+
+        if (!missing(CI_lower) && !missing(CI_upper)) {
+            monthly_rain_data$test <- monthly_rain_data$test |>
+                mutate(
+                    pred_lower = CI_lower * LTA,
+                    pred_upper = CI_upper * LTA
+                )
+        }
     } else {
         monthly_rain_data$test <- monthly_rain_data$test |>
             mutate(predicted_rain = y_hat)
@@ -179,6 +188,23 @@ update_monthly_predictions <- function(
         "predicted_rain"
     ] <-
         monthly_rain_data$test$predicted_rain
+
+    if (!missing(CI_lower) && !missing(CI_upper) && !baseline) {
+        rain_data$test[
+            rain_data$test$month == current_month &
+                rain_data$test$year == current_year,
+
+            "pred_lower"
+        ] <-
+            monthly_rain_data$test$pred_lower
+        rain_data$test[
+            rain_data$test$month == current_month &
+                rain_data$test$year == current_year,
+
+            "pred_upper"
+        ] <-
+            monthly_rain_data$test$pred_upper
+    }
 
     rain_data
 }
@@ -207,11 +233,12 @@ monthly_rain_plot <- function(grid, monthly_rain_data, plot_destination) {
 
 
 monthly_rain_CI_plot <- function(
-  grid,
-  monthly_rain_data,
-  plot_destination,
-  CI_level = 0.95
+    grid,
+    monthly_rain_data,
+    plot_destination,
+    CI_level = 0.95
 ) {
+    require(paletteer)
     require(cowplot)
 
     rain_breaks <- c(
@@ -226,53 +253,53 @@ monthly_rain_CI_plot <- function(
             stations = monthly_rain_data,
             station_size = 1.5,
             breaks = rain_breaks,
-            bias = 0.5
+            bias = 0.5,
+            title = "Monthly Rain (mm)"
         )
 
 
-    grid$lower_diff <-
-        grid$CI_lower - grid$rain
-    lower_CI_plot <-
+    grid$diff <- grid$rain - grid$CI_lower
+    z <- qnorm(1 - (1 - 0.95) / 2)
+    grid$sd <- grid$diff / z
+
+    sd_plot <-
         base_grid_plot(
             grid,
             island_outline,
-            response = "lower_diff",
-            colour_palette = c(
-                "#920a00",
-                "#f03e32",
-                "#c44d45",
-                "#df9f9b",
-                "#f7f4f4"
-            ),
-            breaks = c(
-                -200, -150, -100, seq(-80, -10, by = 10), -5, -2, 0
-            )
+            response = "sd",
+            breaks = c(seq(0, 70, by = 5)),
+            colour_palette = paletteer_c("viridis::viridis", 10),
+
+            title = "Standard Deviation (mm)"
         )
 
-    grid$upper_diff <-
-        grid$CI_upper - grid$rain
-    upper_CI_plot <-
+
+    grid$perc_diff <-
+        (grid$rain - grid$CI_lower) * 100 / grid$rain
+
+    perc_diff_plot <-
         base_grid_plot(
             grid,
             island_outline,
-            response = "upper_diff",
+            response = "perc_diff",
             colour_palette = c(
-                "#e8eaff",
+                "#4989ff",
                 "#72c0ff",
-                "#507fd6",
-                "#465be3",
-                "#440091"
+                "#f7f4f4",
+                "#df9f9b",
+                "#f03e32",
+                "#920a00"
             ),
-            breaks = c(
-                0, 2, 5, seq(10, 80, by = 10), 100, 150, 200
-            )
+            breaks = c(seq(0, 50, by = 5)),
+
+            title = "% Difference (Rain - SD)"
         )
 
     full_plot <-
         plot_grid(
             rain_plot,
-            lower_CI_plot,
-            upper_CI_plot,
+            sd_plot,
+            perc_diff_plot,
             ncol = 3
         )
 
@@ -284,7 +311,4 @@ monthly_rain_CI_plot <- function(
     )
 }
 
-
-
-
-save.image(file = "Data/Monthly_Rainfall/train_test_80_20_2016-2025.RData")
+# save.image(file = "Data/Monthly_Rainfall/train_test_80_20_2016-2025.RData")

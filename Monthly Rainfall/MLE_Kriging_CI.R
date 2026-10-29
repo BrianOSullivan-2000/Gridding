@@ -35,10 +35,9 @@ f <- as.formula(
 
 ## Check grids and computation time
 
-
 plot_grid <- grid_geodata[c("east", "north")]
 
-for (date_index in seq_len(nrow(dates))[1:10]) {
+for (date_index in seq_len(nrow(dates))) {
 
     current_month <- dates[date_index, ]$month
     current_year <- dates[date_index, ]$year
@@ -66,6 +65,10 @@ for (date_index in seq_len(nrow(dates))[1:10]) {
     CI_lower <- result$CI_lower
     CI_upper <- result$CI_upper
 
+    print(paste0(
+        "Check for negative - ",
+        sum(CI_lower < 0) / nrow(grid_geodata)
+    ))
     grid_geodata$rain <-
         (y_hat) * grid_LTAs_9120[[paste0("m_", current_month)]]
     grid_geodata$CI_lower <-
@@ -88,3 +91,80 @@ for (date_index in seq_len(nrow(dates))[1:10]) {
 
     print(date_index)
 }
+
+# %%
+
+set.seed(222)
+
+## I also want to check if the held out values from CV
+## fall within the CI at a 95% coverage
+
+coverages <- rep(NA, nrow(dates))
+
+for (date_index in seq_len(nrow(dates))) {
+
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
+    monthly_rain_data <- get_monthly_rain_data(
+        rain_data, dates, date_index
+    )
+
+    result <-
+        MLE_kriging(
+            df = monthly_rain_data$train,
+            new_df = monthly_rain_data$test,
+            coords = monthly_rain_data$train[c("east", "north")],
+            new_coords = monthly_rain_data$test[c("east", "north")],
+            cov_function = "Exp",
+            formula = f,
+            init_pars = c(0.001, 0.0001, 150),
+            lower = c(1e-8, 0, 10),
+            upper = c(0.05, 0.01, 500),
+            return_CI = TRUE,
+            CI_type = "trend",
+            CI_level = 0.95
+        )
+
+    y_hat <- result$pred
+    CI_lower <- result$CI_lower
+    CI_upper <- result$CI_upper
+
+    rain_data <- update_monthly_predictions(
+        rain_data, y_hat, dates, date_index,
+        CI_lower = CI_lower, CI_upper = CI_upper
+    )
+
+    print(paste("Date", date_index))
+
+    rain_test <- rain_data$test |>
+        filter(
+            year == current_year,
+            month == current_month
+        )
+
+    print(paste0(
+        "RMSE: ", rmse(rain_test$rain, rain_test$predicted_rain)
+    ))
+    print(paste0(
+        "Coverage: ",
+        sum(
+            (rain_test$rain < rain_test$pred_upper) &
+                (rain_test$rain > rain_test$pred_lower)
+        ) * 100 / nrow(rain_test)
+    ))
+
+    coverage <- sum(
+        (rain_test$rain < rain_test$pred_upper) &
+            (rain_test$rain > rain_test$pred_lower)
+    ) * 100 / nrow(rain_test)
+
+    coverages[date_index] <- coverage
+}
+
+## parametric bootstrap?
+x <- rain_data$test |>
+    group_by(year, month) |>
+    summarise(n = n())
+
+mean(coverages, na.rm = TRUE)
