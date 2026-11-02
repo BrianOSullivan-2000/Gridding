@@ -39,7 +39,8 @@ spatio_temporal_IDW <- function(y, coords, new_coords,
         "north" = new_coords[, 2], "t" = new_coords[, 3]
     )
 
-    data$t <- data$t * C; newdata$t <- newdata$t * C
+    data$t <- data$t * C
+    newdata$t <- newdata$t * C
 
     coordinates(data) <- c("east", "north", "t")
     coordinates(newdata) <- c("east", "north", "t")

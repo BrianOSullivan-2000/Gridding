@@ -211,10 +211,8 @@ get_daily_temperature_data <- function(
             mutate(
                 LTA_maxt = .data[[paste0("maxt_m_", current_month)]],
                 LTA_mint = .data[[paste0("mint_m_", current_month)]],
-                maxt_anomaly = maxt - LTA_maxt,
-                mint_anomaly = mint - LTA_mint,
-                y_maxt = maxt_anomaly,
-                y_mint = mint_anomaly
+                y_maxt = maxt - LTA_maxt,
+                y_min = mint - LTA_mint
             )
     }
 
@@ -284,7 +282,6 @@ update_daily_predictions <- function(
     temperature_data
 }
 
-
 ## Temperature palette pulled from swalsh scripts on sol
 temperature_palette <- c(
     "#502020", "#611838", "#721050", "#830868", "#940080",
@@ -305,7 +302,6 @@ temperature_idx_sequence <- cbind(
 daily_temperature_plot <- function(
     grid, daily_temperature_data, plot_destination
 ) {
-
     require(cowplot)
 
     cut_maxt <- seq(
@@ -370,7 +366,8 @@ daily_temperature_plot <- function(
         width = 14,
         height = 7
     )
-
 }
+
+last_update <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
 
 # save.image(file = "Data/Daily_Temperature/train_test_80_20_2025.RData")

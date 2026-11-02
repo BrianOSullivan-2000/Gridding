@@ -100,14 +100,19 @@ MLE_kriging <- function(
 
     # Response variable and covariates
     y <- model.frame(formula, df)[[1]]
-    X <- model.matrix(formula, df)
+    X <- model.matrix(
+        formula,
+        df |> mutate(east = east / 1000, north = north / 1000)
+    )
+
     new_X <- model.matrix(
         reformulate(
             attr(
                 terms(formula),
                 "term.labels"
             )
-        ), new_df
+        ), new_df |>
+            mutate(east = east / 1000, north = north / 1000)
     )
 
     if (return_CI) {

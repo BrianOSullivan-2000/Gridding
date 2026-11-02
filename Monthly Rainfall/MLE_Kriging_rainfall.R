@@ -28,7 +28,6 @@ f <- as.formula(
         paste(
             "east", "north",
             "points5",
-            # "dist2c", "exp25k",
             sep = " + "
         )
     )
@@ -78,7 +77,7 @@ print(metrics_table)
 #     metrics_table,
 #     paste0(
 #         "Results/Monthly_Rainfall/train_test_80_20_2016-2025/",
-#         "RK_Exp_MLE.csv"
+#         "RK_Exp_MLE_2nd_order.csv"
 #     ),
 #     row.names = FALSE
 # )
@@ -141,3 +140,82 @@ for (date_index in seq_len(nrow(dates))) {
 
 print("Mean Times")
 print(mean(times, na.rm = TRUE))
+
+
+# %%
+
+## There's a check I want to do
+
+## 1. Use the full model
+## 2. Run stepwise regression on it, just to select features
+## 3. Using features chosen by stepwise, run MLE_kriging
+
+## This approach is "more similar" to the original baseline
+## method, since it lets us "keep" all the covariates. I still
+## expect it to be worse than not using them though
+
+
+full_formula <- y ~ east + I(east^2) + north + I(north^2) + east * north +
+    n5 + s5 + e5 + w5 + ne5 + se5 + sw5 + nw5 + elev +
+    exp5k + exp10k + exp15k + exp20k + exp25k + dist2c
+
+
+for (date_index in seq_len(nrow(dates))) {
+
+    monthly_rain_data <- get_monthly_rain_data(
+        rain_data, dates, date_index
+    )
+
+    model <- lm(full_formula, monthly_rain_data$train)
+    model <- step(model, trace = 0)
+
+    f <- as.formula(
+        paste(
+            "y ~",
+            paste(
+                names(model$coefficients[-1]),
+                collapse = " + "
+            )
+        )
+    )
+
+    y_hat <-
+        MLE_kriging(
+            monthly_rain_data$train,
+            monthly_rain_data$test,
+            monthly_rain_data$train[c("east", "north")],
+            monthly_rain_data$test[c("east", "north")],
+
+            cov_function = "Exp",
+
+            formula = f,
+
+            init_pars = c(0.001, 0.0001, 150),
+            lower = c(1e-8, 0, 10),
+            upper = c(0.05, 0.01, 500)
+        )$pred
+
+    rain_data <- update_monthly_predictions(
+        rain_data, y_hat, dates, date_index
+    )
+
+    print(paste("Date", date_index))
+}
+
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "RK Exp MLE",
+        rain_data$test$rain,
+        rain_data$test$predicted_rain
+    )
+print(metrics_table)
+
+write.csv(
+    metrics_table,
+    paste0(
+        "Results/Monthly_Rainfall/train_test_80_20_2016-2025/",
+        "RK_Exp_MLE_stepwise.csv"
+    ),
+    row.names = FALSE
+)
