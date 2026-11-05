@@ -158,8 +158,8 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
 
 }
 
-write.csv(
-    metrics_table,
-    "Results/Daily_Temperature/train_test_five_fold_2025/ST_IDW_config.csv",
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     "Results/Daily_Temperature/train_test_five_fold_2025/ST_IDW_config.csv",
+#     row.names = FALSE
+# )

@@ -52,7 +52,11 @@ spatio_temporal_regression_IDW <- function(df, new_df, coords, new_coords,
     coordinates(newdata) <- c("east", "north", "t")
 
     # Interpolate value at each point in newdata
-    idw_df <- idw(residuals ~ 1, data, newdata, idp = idp, nmax = nmax)
+    idw_df <- idw(
+        residuals ~ 1, data, newdata,
+        idp = idp, nmax = nmax,
+        debug.level = 0
+    )
     new_df$residuals <- idw_df$var1.pred
 
     # Add trend back

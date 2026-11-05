@@ -37,32 +37,38 @@ dates <- temperature_data |>
 get_daily_temperature_data <- function(
     temperature_data,
     dates,
-    date_index,
+    date_index = NULL,
     current_fold = NULL,
-    experiment_type = c("train_test", "all_data")
+    experiment_type = c("train_test", "all_data"),
+    date_indices = date_index
 ) {
-
     experiment_type <- match.arg(experiment_type)
 
-    current_day <- dates[date_index, ]$day
-    current_month <- dates[date_index, ]$month
-    current_year <- dates[date_index, ]$year
+    if (is.null(date_indices) || !length(date_indices)) {
+        stop("Provide one or more date_indices")
+    }
+    if (anyNA(date_indices) ||
+            any(date_indices < 1 | date_indices > nrow(dates))) {
+        stop("date_indices contains an invalid index")
+    }
+
+    selected_dates <- dates[date_indices, , drop = FALSE] |>
+        dplyr::select(year, month, day) |>
+        dplyr::distinct()
 
     daily_temperature_data <- temperature_data |>
-        filter(
-            day == current_day,
-            month == current_month,
-            year == current_year
-        ) |>
+        semi_join(selected_dates, by = c("year", "month", "day")) |>
+        rowwise() |>
         mutate(
-            LTA_maxt = .data[[paste0("maxt_m_", current_month)]],
-            LTA_mint = .data[[paste0("mint_m_", current_month)]],
+            LTA_maxt = get(paste0("maxt_m_", month)),
+            LTA_mint = get(paste0("mint_m_", month)),
             y_maxt = maxt - LTA_maxt,
             y_mint = mint - LTA_mint
-        )
+        ) |>
+        ungroup()
 
     if (experiment_type == "train_test") {
-        if (missing(current_fold)) {
+        if (is.null(current_fold)) {
             stop("Need to give fold for train-test split")
         }
 
@@ -85,44 +91,39 @@ update_daily_predictions <- function(
     y_hat_maxt,
     y_hat_mint,
     dates,
-    date_index,
-    current_fold
+    date_index = NULL,
+    current_fold,
+    date_indices = date_index
 ) {
     daily_temperature_data <- get_daily_temperature_data(
         temperature_data,
-        dates, date_index,
-        current_fold = current_fold
+        dates,
+        current_fold = current_fold,
+        date_indices = date_indices
     )
 
-    daily_temperature_data$test <- daily_temperature_data$test |>
+    test_data <- daily_temperature_data$test |>
         mutate(
             predicted_maxt = y_hat_maxt + LTA_maxt,
             predicted_mint = y_hat_mint + LTA_mint
         )
 
-    current_day <- dates[date_index, ]$day
-    current_month <- dates[date_index, ]$month
-    current_year <- dates[date_index, ]$year
+    selected_dates <- dates[date_indices, , drop = FALSE] |>
+        dplyr::select(year, month, day) |>
+        dplyr::distinct()
 
-    temperature_data[
-        temperature_data$day == current_day &
-            temperature_data$month == current_month &
-            temperature_data$year == current_year &
-            temperature_data$fold == current_fold,
+    target_rows <- temperature_data |>
+        mutate(.row_id = row_number()) |>
+        filter(fold == current_fold) |>
+        semi_join(selected_dates, by = c("year", "month", "day")) |>
+        pull(.row_id)
 
-        "predicted_maxt"
-    ] <-
-        daily_temperature_data$test$predicted_maxt
+    if (length(target_rows) != nrow(test_data)) {
+        stop("Prediction count does not match the selected test rows")
+    }
 
-    temperature_data[
-        temperature_data$day == current_day &
-            temperature_data$month == current_month &
-            temperature_data$year == current_year &
-            temperature_data$fold == current_fold,
-
-        "predicted_mint"
-    ] <-
-        daily_temperature_data$test$predicted_mint
+    temperature_data$predicted_maxt[target_rows] <- test_data$predicted_maxt
+    temperature_data$predicted_mint[target_rows] <- test_data$predicted_mint
 
     temperature_data
 }
@@ -135,46 +136,40 @@ get_temperature_data <- function(
     current_fold = NULL,
     experiment_type = c("train_test", "all_data"),
     date_index = NULL,
-    dates = NULL
+    dates = NULL,
+    date_indices = date_index
 ) {
-
     experiment_type <- match.arg(experiment_type)
 
-    if (!missing(date_index) && !missing(dates)) {
+    if (!is.null(date_indices)) {
+        if (is.null(dates)) {
+            stop("Provide dates when using date_indices")
+        }
+        if (anyNA(date_indices) ||
+                any(date_indices < 1 | date_indices > nrow(dates))) {
+            stop("date_indices contains an invalid index")
+        }
 
-        current_day <- dates[date_index, ]$day
-        current_month <- dates[date_index, ]$month
-        current_year <- dates[date_index, ]$year
-
-        prepared_temperature_data <- temperature_data |>
-            mutate(
-                LTA_maxt = .data[[paste0("maxt_m_", current_month)]],
-                LTA_mint = .data[[paste0("mint_m_", current_month)]]
-            )
-
-    } else {
-
-        prepared_temperature_data <- temperature_data |>
-            rowwise() |>
-            mutate(
-                LTA_maxt = get(paste0("maxt_m_", month)),
-                LTA_mint = get(paste0("mint_m_", month))
-            ) |>
-            ungroup()
-
+        selected_dates <- dates[date_indices, , drop = FALSE] |>
+            dplyr::select(year, month, day) |>
+            dplyr::distinct()
     }
 
-    prepared_temperature_data <- prepared_temperature_data |>
+    prepared_temperature_data <- temperature_data |>
+        rowwise() |>
         mutate(
+            LTA_maxt = get(paste0("maxt_m_", month)),
+            LTA_mint = get(paste0("mint_m_", month)),
             y_maxt = maxt - LTA_maxt,
             y_mint = mint - LTA_mint
         ) |>
+        ungroup() |>
         group_by(year, month, day) |>
         mutate(t = cur_group_id()) |>
         ungroup()
 
     if (experiment_type == "train_test") {
-        if (missing(current_fold)) {
+        if (is.null(current_fold)) {
             stop("Need to give fold for train-test split")
         }
 
@@ -184,16 +179,15 @@ get_temperature_data <- function(
             test = prepared_temperature_data |>
                 filter(fold == current_fold)
         )
-    }
 
-    if (!missing(date_index) && !missing(dates)) {
-        prepared_temperature_data$test <-
-            prepared_temperature_data$test |>
-            filter(
-                year == current_year,
-                month == current_month,
-                day == current_day
-            )
+        if (!is.null(date_indices)) {
+            prepared_temperature_data$test <-
+                prepared_temperature_data$test |>
+                semi_join(selected_dates, by = c("year", "month", "day"))
+        }
+    } else if (!is.null(date_indices)) {
+        prepared_temperature_data <- prepared_temperature_data |>
+            semi_join(selected_dates, by = c("year", "month", "day"))
     }
 
     prepared_temperature_data
@@ -206,30 +200,44 @@ update_predictions <- function(
     temperature_data,
     y_hat_maxt,
     y_hat_mint,
-    current_fold
+    current_fold,
+    dates = NULL,
+    date_indices = NULL
 ) {
     prepared_temperature_data <- get_temperature_data(
         temperature_data,
-        current_fold = current_fold
+        current_fold = current_fold,
+        dates = dates,
+        date_indices = date_indices
     )
 
-    prepared_temperature_data$test <- prepared_temperature_data$test |>
+    test_data <- prepared_temperature_data$test |>
         mutate(
             predicted_maxt = y_hat_maxt + LTA_maxt,
             predicted_mint = y_hat_mint + LTA_mint
         )
 
-    temperature_data[
-        temperature_data$fold == current_fold,
-        "predicted_maxt"
-    ] <-
-        prepared_temperature_data$test$predicted_maxt
+    target_data <- temperature_data |>
+        mutate(.row_id = row_number()) |>
+        filter(fold == current_fold)
 
-    temperature_data[
-        temperature_data$fold == current_fold,
-        "predicted_mint"
-    ] <-
-        prepared_temperature_data$test$predicted_mint
+    if (!is.null(date_indices)) {
+        selected_dates <- dates[date_indices, , drop = FALSE] |>
+            dplyr::select(year, month, day) |>
+            dplyr::distinct()
+
+        target_data <- target_data |>
+            semi_join(selected_dates, by = c("year", "month", "day"))
+    }
+
+    target_rows <- target_data$.row_id
+
+    if (length(target_rows) != nrow(test_data)) {
+        stop("Prediction count does not match the selected test rows")
+    }
+
+    temperature_data$predicted_maxt[target_rows] <- test_data$predicted_maxt
+    temperature_data$predicted_mint[target_rows] <- test_data$predicted_mint
 
     temperature_data
 }
@@ -310,4 +318,4 @@ cat(
     last_update, "\n"
 )
 
-save.image(file = "Data/Daily_Temperature/train_test_five_fold_2025.RData")
+# save.image(file = "Data/Daily_Temperature/train_test_five_fold_2025.RData")
