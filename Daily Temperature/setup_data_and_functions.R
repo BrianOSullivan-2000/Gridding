@@ -212,7 +212,7 @@ get_daily_temperature_data <- function(
                 LTA_maxt = .data[[paste0("maxt_m_", current_month)]],
                 LTA_mint = .data[[paste0("mint_m_", current_month)]],
                 y_maxt = maxt - LTA_maxt,
-                y_min = mint - LTA_mint
+                y_mint = mint - LTA_mint
             )
     }
 

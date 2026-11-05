@@ -3,6 +3,9 @@
 ## Inverse Distance Weighting ##
 ## Simple method that uses weighted average based on inverse distance ##
 
+## For spatio-temporal data, consider time as a third dimension, scaled
+## using the hhyperparameter C
+
 # %%
 
 library(dplyr)

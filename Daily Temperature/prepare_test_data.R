@@ -724,3 +724,62 @@ temperature <- temperature |>
 #     "Data/Daily_Temperature/folds/ST_5fold_2025.csv",
 #     row.names = FALSE
 # )
+
+# %%
+
+## I want to add some geodata, namely points5_roughness and slope
+## but that means for many station we'll have to extract these
+## values from the grid
+
+station_geodata <- read.csv("Data/General/station_geodata.csv")
+grid_geodata <- read.csv("Data/General/grid_geodata.csv")
+
+full_station_geodata <-
+    read.csv("../DEMs/final_station_data/station_info_full.csv")
+
+station_geodata <- station_geodata |>
+    left_join(
+        full_station_geodata |>
+            dplyr::select(
+                stno, points5_roughness,
+                slope_1km, slope_5km, slope_10km
+            ),
+        by = "stno"
+    )
+
+geodata_vars <- c(
+    "points5_roughness", "slope_1km", "slope_5km", "slope_10km"
+)
+
+library(sf)
+library(gstat)
+
+incomplete_stno_idx <-
+    which(is.na(station_geodata$points5_roughness))
+incomplete_stno_sf <-
+    st_as_sf(
+        station_geodata[incomplete_stno_idx, ],
+        coords = c("east", "north"), crs = NA
+    )
+grid_sf <- st_as_sf(grid_geodata, coords = c("east", "north"), crs = NA)
+
+for (v in geodata_vars) {
+    result <- idw(
+        formula = as.formula(paste(v, "~ 1")),
+        locations = grid_sf,
+        newdata = incomplete_stno_sf,
+        idp = 2,
+        nmax = 8
+    )$var1.pred
+    station_geodata[
+        incomplete_stno_idx, v
+    ] <- result
+
+    print(v)
+}
+
+# write.csv(
+#     station_geodata,
+#     "Data/General/station_geodata.csv",
+#     row.names = FALSE
+# )

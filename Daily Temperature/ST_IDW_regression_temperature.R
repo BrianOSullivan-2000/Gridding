@@ -1,7 +1,12 @@
 
 ## Validation tests for daily temperature grids ##
-## Inverse Distance Weighting ##
-## Simple method that uses weighted average based on inverse distance ##
+## Inverse Distance Weighting with regression ##
+
+## For spatio-temporal data, consider time as a third dimension, scaled
+## using the hhyperparameter C
+
+## Step 1 is regression, fit trend to data based on geographic covariates ##
+## Step 2 is interpolation, interpolate residuals using IDW ##
 
 # %%
 
