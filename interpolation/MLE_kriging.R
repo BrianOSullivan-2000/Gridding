@@ -203,75 +203,75 @@ MLE_kriging <- function(
                     "Getting CI with the full approach",
                     " is still under development"
                 ))
-            #     require(MASS)
+                #     require(MASS)
 
-            #     ## Get varcov matrix of covariance params
-            #     vcov_theta <- solve(soln$hessian)
+                #     ## Get varcov matrix of covariance params
+                #     vcov_theta <- solve(soln$hessian)
 
-            #     B <- 200
-            #     var_sims <- matrix(
-            #         NA,
-            #         nrow = B, ncol = nrow(new_df)
-            #     )
-            #     pred_sims <- var_sims
+                #     B <- 200
+                #     var_sims <- matrix(
+                #         NA,
+                #         nrow = B, ncol = nrow(new_df)
+                #     )
+                #     pred_sims <- var_sims
 
-            #     theta_samples <- mvrnorm(
-            #         n = B,
-            #         mu = pars,
-            #         Sigma = vcov_theta
-            #     )
+                #     theta_samples <- mvrnorm(
+                #         n = B,
+                #         mu = pars,
+                #         Sigma = vcov_theta
+                #     )
 
-            #     batch_size <- 2000
-            #     batch_indices <- split(
-            #         seq_len(nrow(new_df)),
-            #         ceiling(seq_len(nrow(new_df)) / batch_size)
-            #     )
-            #     vVv_star <- numeric(nrow(new_df))
-            #     dMd_star <- numeric(nrow(new_df))
+                #     batch_size <- 2000
+                #     batch_indices <- split(
+                #         seq_len(nrow(new_df)),
+                #         ceiling(seq_len(nrow(new_df)) / batch_size)
+                #     )
+                #     vVv_star <- numeric(nrow(new_df))
+                #     dMd_star <- numeric(nrow(new_df))
 
-            #     for (b in seq_len(B)) {
-            #         theta_star <- theta_samples[b, ]
-            #         if (theta_star[3] < 5) {
-            #             theta_star[3] <- 5
-            #         }
+                #     for (b in seq_len(B)) {
+                #         theta_star <- theta_samples[b, ]
+                #         if (theta_star[3] < 5) {
+                #             theta_star[3] <- 5
+                #         }
 
-            #         V_star <- fn(theta_star, ds)
-            #         cross_V_star <- fn(theta_star, cross_ds)
-            #         R_star <- chol(V_star)
+                #         V_star <- fn(theta_star, ds)
+                #         cross_V_star <- fn(theta_star, cross_ds)
+                #         R_star <- chol(V_star)
 
-            #         Vinv_star <- solve(V_star)
-            #         d_star <-
-            #             new_X - (t(cross_V_star) %*% (Vinv_star %*% X))
-            #         M_star <- solve(t(X) %*% (Vinv_star %*% X))
+                #         Vinv_star <- solve(V_star)
+                #         d_star <-
+                #             new_X - (t(cross_V_star) %*% (Vinv_star %*% X))
+                #         M_star <- solve(t(X) %*% (Vinv_star %*% X))
 
-            #         for (batch_idx in batch_indices) {
-            #             A_star <- backsolve(
-            #                 R_star,
-            #                 forwardsolve(
-            #                     t(R), cross_V_star[, batch_idx]
-            #                 )
-            #             )
-            #             vVv_star[batch_idx] <-
-            #                 colSums(cross_V_star[, batch_idx] * A_star)
+                #         for (batch_idx in batch_indices) {
+                #             A_star <- backsolve(
+                #                 R_star,
+                #                 forwardsolve(
+                #                     t(R), cross_V_star[, batch_idx]
+                #                 )
+                #             )
+                #             vVv_star[batch_idx] <-
+                #                 colSums(cross_V_star[, batch_idx] * A_star)
 
-            #             d_batch <- d_star[batch_idx, , drop = FALSE]
-            #             dM_star <- d_batch %*% M_star
-            #             dMd_star[batch_idx] <- rowSums(dM_star * d_batch)
-            #         }
+                #             d_batch <- d_star[batch_idx, , drop = FALSE]
+                #             dM_star <- d_batch %*% M_star
+                #             dMd_star[batch_idx] <- rowSums(dM_star * d_batch)
+                #         }
 
-            #         betahat_star <-
-            #             solve(t(X) %*% Vinv_star %*% X) %*%
-            #             (t(X) %*% (Vinv_star %*% y))
-            #         pred_sims[b, ] <-
-            #             new_X %*% betahat_star + t(cross_V_star) %*%
-            #             (Vinv_star %*% (y - X %*% betahat_star))
+                #         betahat_star <-
+                #             solve(t(X) %*% Vinv_star %*% X) %*%
+                #             (t(X) %*% (Vinv_star %*% y))
+                #         pred_sims[b, ] <-
+                #             new_X %*% betahat_star + t(cross_V_star) %*%
+                #             (Vinv_star %*% (y - X %*% betahat_star))
 
-            #         var_sims[b, ] <-
-            #             theta_star[1] - vVv_star + dMd_star
-            #     }
+                #         var_sims[b, ] <-
+                #             theta_star[1] - vVv_star + dMd_star
+                #     }
 
-            #     variance <- colMeans(var_sims) +
-            #         apply(pred_sims, 2, var) + pars[2]
+                #     variance <- colMeans(var_sims) +
+                #         apply(pred_sims, 2, var) + pars[2]
             }
 
             variance <- pmax(variance, 0)

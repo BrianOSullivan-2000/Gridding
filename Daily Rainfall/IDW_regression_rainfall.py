@@ -6,6 +6,9 @@
 # %% 
 
 # ## Setup and data
+from pathlib import Path
+from time import perf_counter
+
 import dill
 import numpy as np
 from scipy.spatial import cKDTree
@@ -19,6 +22,9 @@ metrics_table = session["metrics_table"]
 get_daily_rain_data = session["get_daily_rain_data"]
 update_daily_predictions = session["update_daily_predictions"]
 collect_metrics = session["collect_metrics"]
+grid_geodata = session["grid_geodata"]
+grid_LTAs_9120 = session["grid_LTAs_9120"]
+daily_rain_plot = session["daily_rain_plot"]
 
 # %% 
 
@@ -65,12 +71,15 @@ def idw_predict(residuals, coordinates, target_coordinates, power=2, nmax=15):
 
 
 def predict_daily_values(daily_data):
-    train_data = daily_data["train"].dropna(subset=["y", *PREDICTORS])
-    test_data = daily_data["test"]
-    predictions = np.full(len(test_data), np.nan, dtype=float)
-    valid_test = test_data.loc[:, PREDICTORS].notna().all(axis=1).to_numpy()
+    return predict_values(daily_data["train"], daily_data["test"])
 
-    if train_data.empty or not valid_test.any():
+
+def predict_values(train_data, target_data):
+    train_data = train_data.dropna(subset=["y", *PREDICTORS])
+    predictions = np.full(len(target_data), np.nan, dtype=float)
+    valid_target = target_data.loc[:, PREDICTORS].notna().all(axis=1).to_numpy()
+
+    if train_data.empty or not valid_target.any():
         return predictions
 
     training_features = train_data.loc[:, PREDICTORS].to_numpy(dtype=float)
@@ -86,19 +95,23 @@ def predict_daily_values(daily_data):
         train_data["y"].to_numpy(dtype=float) - training_design @ coefficients
     )
     training_coordinates = train_data.loc[:, ["east", "north"]].to_numpy()
-    test_coordinates = test_data.loc[valid_test, ["east", "north"]].to_numpy()
+    target_coordinates = target_data.loc[
+        valid_target, ["east", "north"]
+    ].to_numpy()
     interpolated_residuals = idw_predict(
         training_residuals,
         training_coordinates,
-        test_coordinates,
+        target_coordinates,
         power=IDW_POWER,
         nmax=IDW_MAX_NEIGHBORS,
     )
 
-    test_features = test_data.loc[valid_test, PREDICTORS].to_numpy(dtype=float)
-    test_design = np.column_stack((np.ones(len(test_features)), test_features))
-    regression_predictions = test_design @ coefficients
-    predictions[valid_test] = regression_predictions + interpolated_residuals
+    target_features = target_data.loc[
+        valid_target, PREDICTORS
+    ].to_numpy(dtype=float)
+    target_design = np.column_stack((np.ones(len(target_features)), target_features))
+    regression_predictions = target_design @ coefficients
+    predictions[valid_target] = regression_predictions + interpolated_residuals
     return predictions
 
 # %% Run all dates
@@ -129,5 +142,44 @@ print(metrics_table.to_string(index=False))
 #     "Results/Daily_Rainfall/train_test_80_20_2016-2025/IDW_MLR_python.csv",
 #     index=False,
 # )
+
+# %% Predict grids, save plots, and time each date
+grid_times = np.full(len(dates), np.nan, dtype=float)
+figure_directory = Path("Figures/Daily_Rainfall/IDW_MLR_python")
+figure_directory.mkdir(parents=True, exist_ok=True)
+
+for date_index in range(len(dates)):
+    start_time = perf_counter()
+    current_date = dates.iloc[date_index]
+    current_day = int(current_date["day"])
+    current_month = int(current_date["month"])
+    current_year = int(current_date["year"])
+
+    daily_rain_data = get_daily_rain_data(
+        rain_data,
+        dates,
+        date_index,
+        experiment_type="all_data",
+    )
+    predicted_y = predict_values(daily_rain_data, grid_geodata)
+    grid_geodata["rain"] = (
+        np.expm1(predicted_y)
+        * grid_LTAs_9120[f"m_{current_month}"].to_numpy()
+    )
+
+    plot_destination = figure_directory / (
+        f"IDW_MLR_{current_year}_{current_month:02d}_{current_day:02d}.jpg"
+    )
+    daily_rain_plot(
+        grid_geodata,
+        daily_rain_data,
+        plot_destination=str(plot_destination),
+    )
+
+    grid_times[date_index] = perf_counter() - start_time
+    print(date_index)
+
+print("Mean Times")
+print(np.nanmean(grid_times))
 
 # %%
