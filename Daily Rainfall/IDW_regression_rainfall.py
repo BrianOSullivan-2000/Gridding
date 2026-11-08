@@ -5,7 +5,7 @@
 
 # %% 
 
-# ## Setup and data
+## Setup and data
 from pathlib import Path
 from time import perf_counter
 

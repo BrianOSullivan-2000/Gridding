@@ -13,6 +13,8 @@ if get_ipython is not None:
     if ipython is not None:
         ipython.run_line_magic("reset", "-f")
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -20,8 +22,8 @@ from utilities.metric_functions import (
     JSD,
     ME10,
     R2,
-    Heavy_Wet_Day_Bias,
-    Rain_Day_Bias,
+    # Heavy_Wet_Day_Bias,
+    # Rain_Day_Bias,
     Wet_Day_Bias,
     mae,
     me,
@@ -90,6 +92,20 @@ metrics_table = pd.DataFrame(
 
 ## Function for getting metrics
 def collect_metrics(metrics_table, name, y, y_hat):
+
+    ## If any missing data in y_hat, drop it but give a warning
+    y = np.asarray(y)
+    y_hat = np.asarray(y_hat)
+    missing_predictions = pd.isna(y_hat)
+    missing_count = missing_predictions.sum()
+    if missing_count:
+        warnings.warn(
+            f"Found {missing_count} NA values in y_hat; excluding them from metric calculations.",
+            UserWarning,
+        )
+        y = y[~missing_predictions]
+        y_hat = y_hat[~missing_predictions]
+
     new_row = pd.DataFrame(
         [
             {
