@@ -8,6 +8,8 @@
 
 ################################################################################
 
+source("utilities/variogram.R")
+
 ordinary_kriging <- function(y, coords, new_coords,
                              nmax = Inf, debug.level = 1, ...) {
 
@@ -47,108 +49,4 @@ ordinary_kriging <- function(y, coords, new_coords,
     )
 
     krig_df
-}
-
-
-
-
-## Make and fit a spatial variogram
-
-spatial_variogram_kriging <- function(df, flex_vgm = FALSE, flex_fit = TRUE,
-                                      cutoff = NA, width = NA,
-                                      vgm_model = "Mat",
-                                      psill = NA, nugget = NA, range = NA,
-                                      kappa = 1, plot_vgm = FALSE, ...) {
-
-    # df               -data
-    # flex_vgm         -automate making empirical variogram (Not recommended)
-    # flex_fit         -automate initial values for theoretical variogram
-    #                  (Not recommended)
-
-    # cutoff           -cutoff of empirical variogram
-    # width            -width of bins for empirical variogram
-
-    # vgm_model        -variogram model
-    # psill, nugget,
-    # range            -initial partial sill, nugget and range
-    # kappa            -kappa value (shape parameter for Matern model)
-    # plot_vgm         -option to plot the variogram
-
-    # Load in packages
-    require(sp)
-    require(gstat)
-
-    # Error message if variogram params not provided
-    # and flex arguments are False
-    if ((any(is.na(c(cutoff, width))) && flex_vgm == FALSE) ||
-            (any(is.na(c(psill, nugget, range))) && flex_fit == FALSE)) {
-
-        # Find parameters that are missing
-        params <- c("cutoff", "width",
-                    "psill", "nugget", "range")[is.na(c(cutoff, width,
-                                                        psill, nugget, range))]
-        params <- paste(params, collapse = ", ")
-
-        warning <- paste0("No values assigned to variogram parameters. 
-        Either assign parameters manually (recommended) or use flex_vgm and
-        flex_fit arguments. Parameters missing are ", params, ".")
-
-        stop(warning)
-    }
-
-    # Flexible way to get cutoff and width of variogram
-    if (flex_vgm == TRUE) {
-        cutoff <- sqrt((max(df$east) - min(df$east))^2 +
-                           (max(df$north) - min(df$north))^2) / 2
-        width <- cutoff / 15
-    }
-
-    # Empirical variogram
-    vgm <- variogram(y ~ 1, data = df, cutoff = cutoff, width = width)
-
-    # Flexible way to get initial variogram parameters
-    if (flex_fit == TRUE) {
-
-        nugget <- min(vgm$gamma)
-
-        psill <- median(
-            vgm$gamma[
-                vgm$dist >= quantile(vgm$dist, 0.75, na.rm = TRUE)
-            ],
-            na.rm = TRUE
-        ) - nugget
-        psill <- max(psill, 0)
-
-        range <- vgm$dist[which.min(abs(vgm$gamma - (psill + nugget)))]
-
-    }
-
-    # Set up theoretical variogram - then fit to empirical variogram
-    fit_vgm <- vgm(
-        model = vgm_model, psill = psill, nugget = nugget,
-        range = range, kappa = kappa
-    )
-    fit_vgm <- fit.variogram(vgm, fit_vgm)
-
-    if (attr(fit_vgm, "singular")) {
-
-        fit_vgm <- fit.variogram(
-            vgm,
-            vgm(
-                model = vgm_model,
-                psill = psill,
-                nugget = nugget,
-                range = range,
-                kappa = kappa
-            ),
-            fit.sills = c(FALSE, FALSE),
-            fit.ranges = TRUE
-        )
-    }
-
-    if (plot_vgm) {
-        print(plot(vgm, fit_vgm))
-    }
-
-    fit_vgm
 }

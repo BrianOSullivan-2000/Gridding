@@ -288,13 +288,19 @@ metrics_table <-
 
 print(metrics_table)
 
-write.csv(
-    metrics_table,
-    "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/MLE_Kriging.csv",
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/MLE_Kriging.csv",
+#     row.names = FALSE
+# )
 
 final_results <- bind_cols(
     final_results,
     data.frame(`MLE Kriging` = rain_data$predicted_rain)
 )
+
+# write.csv(
+#     final_results,
+#     "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/final_results.csv",
+#     row.names = FALSE
+# )

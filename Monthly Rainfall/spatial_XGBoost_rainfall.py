@@ -199,10 +199,9 @@ figure_directory = Path("Figures/Monthly_Rainfall/spatial_XGBoost")
 figure_directory.mkdir(parents=True, exist_ok=True)
 
 # for date_index in range(len(dates)):
-for date_index in range(10):
+for date_index in range(15):
     start_time = perf_counter()
     current_date = dates.iloc[date_index]
-    current_day = int(current_date["day"])
     current_month = int(current_date["month"])
     current_year = int(current_date["year"])
 
@@ -216,12 +215,12 @@ for date_index in range(10):
 
     predicted_y = predict_values(monthly_rain_data, prediction_grid)
     prediction_grid["rain"] = (
-        np.expm1(predicted_y)
+        predicted_y
         * grid_LTAs_9120[f"m_{current_month}"].to_numpy()
     )
 
     plot_destination = figure_directory / (
-        f"spatial_XGBoost_{current_year}_{current_month:02d}_{current_day:02d}.jpg"
+        f"spatial_XGBoost_{current_year}_{current_month:02d}.jpg"
     )
     monthly_rain_plot(
         prediction_grid,

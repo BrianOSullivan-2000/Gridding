@@ -1,12 +1,18 @@
 
 ################################################################################
 
-# Ordinary Kriging
+# Regression Kriging
 # Kriging interpolation - the response variable is considered to come from
 # a Gaussian Process. Specify a covariance function (eg Matérn) and fit to
 # a variogram. Then interpolate using weighted averages.
 
+# For regression kriging, a modelled trend is removed from the data first
+# (regression). Then kriging is done on the model residuals. Afterwards, the
+# estimated trend is added to the interpolated residuals to get final values
+
 ################################################################################
+
+source("utilities/variogram.R")
 
 regression_kriging <- function(df, new_df, coords, new_coords,
                                regression_method,
@@ -18,6 +24,8 @@ regression_kriging <- function(df, new_df, coords, new_coords,
     # new_coords              -spatial coordinates to interpolate on to
     #                         coords and new coords should have two columns
     #                         eg (east, north)
+
+    # regression_method       -regression method used for trend (e.g. MLR)
 
     # nmax                    -maximum number of neighbours to
     #                         use for prediction
@@ -37,7 +45,7 @@ regression_kriging <- function(df, new_df, coords, new_coords,
 
     # For gstat - the data needs to be stored in spatial dataframes
     data <- data.frame(
-        residuals = df$residuals,
+        y = df$residuals,
         east = coords[, 1], north = coords[, 2]
     )
     coordinates(data) <- c("east", "north")
@@ -52,7 +60,7 @@ regression_kriging <- function(df, new_df, coords, new_coords,
 
     # Interpolate values with ordinary kriging
     krig_df <- krige(
-        residuals ~ 1, data, newdata, fit_vgm,
+        y ~ 1, data, newdata, fit_vgm,
         nmax = nmax,
         debug.level = debug.level
     )
@@ -62,113 +70,4 @@ regression_kriging <- function(df, new_df, coords, new_coords,
     new_df$var1.pred <- predict(model, new_df) + krig_df$var1.pred
 
     new_df
-}
-
-
-
-
-## Make and fit a spatial variogram
-
-spatial_variogram <- function(df, flex_vgm = FALSE, flex_fit = TRUE,
-                              cutoff = NA, width = NA,
-                              vgm_model = "Mat",
-                              psill = NA, nugget = NA, range = NA,
-                              kappa = 1, fit.method = 7,
-                              plot_vgm = FALSE, ...) {
-
-    # df               -data
-    # flex_vgm         -automate making empirical variogram (Not recommended)
-    # flex_fit         -automate initial values for theoretical variogram
-    #                  (Not recommended)
-
-    # cutoff           -cutoff of empirical variogram
-    # width            -width of bins for empirical variogram
-
-    # vgm_model        -variogram model
-    # psill, nugget,
-    # range            -initial partial sill, nugget and range
-    # kappa            -kappa value (shape parameter for Matern model)
-    # fit.method       -fitting method for vgm
-    #                   (see fit.variogram() documentation)
-    # plot_vgm         -option to plot the variogram
-
-    # Load in packages
-    require(sp)
-    require(gstat)
-
-    # Error message if variogram params not
-    # provided and flex arguments are False
-    if (
-        (any(is.na(c(cutoff, width))) && flex_vgm == FALSE) ||
-            (any(is.na(c(psill, nugget, range))) && flex_fit == FALSE)
-    ) {
-
-        # Find parameters that are missing
-        params <- c("cutoff", "width",
-                    "psill", "nugget", "range")[is.na(c(cutoff, width,
-                                                        psill, nugget, range))]
-        params <- paste(params, collapse = ", ")
-
-        warning <- paste0("No values assigned to variogram parameters. 
-        Either assign parameters manually (recommended) or use flex_vgm and
-        flex_fit arguments. Parameters missing are ", params, ".")
-
-        stop(warning)
-    }
-
-    # Flexible way to get cutoff and width of variogram
-    if (flex_vgm == TRUE) {
-        cutoff <- sqrt((max(df$east) - min(df$east))^2 +
-                           (max(df$north) - min(df$north))^2) / 2
-        width <- cutoff / 15
-    }
-
-    # Empirical variogram
-    vgm <- variogram(residuals ~ 1, data = df, cutoff = cutoff, width = width)
-
-    # Flexible way to get initial variogram parameters
-    if (flex_fit == TRUE) {
-
-        nugget <- min(vgm$gamma)
-
-        psill <- median(
-            vgm$gamma[
-                vgm$dist >= quantile(vgm$dist, 0.75, na.rm = TRUE)
-            ],
-            na.rm = TRUE
-        ) - nugget
-        psill <- max(psill, 0)
-
-        range <- vgm$dist[which.min(abs(vgm$gamma - (psill + nugget)))]
-
-    }
-
-    # Set up theoretical variogram - then fit to empirical variogram
-    fit_vgm <- vgm(
-        model = vgm_model, psill = psill, nugget = nugget,
-        range = range, kappa = kappa
-    )
-    fit_vgm <- fit.variogram(vgm, fit_vgm, fit.method = fit.method)
-
-    if (attr(fit_vgm, "singular")) {
-
-        fit_vgm <- fit.variogram(
-            vgm,
-            vgm(
-                model = vgm_model,
-                psill = psill,
-                nugget = nugget,
-                range = range,
-                kappa = kappa
-            ),
-            fit.sills = c(FALSE, FALSE),
-            fit.ranges = TRUE
-        )
-    }
-
-    if (plot_vgm) {
-        print(plot(vgm, fit_vgm))
-    }
-
-    fit_vgm
 }

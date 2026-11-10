@@ -19,7 +19,6 @@ import numpy as np
 import pandas as pd
 
 from utilities.metric_functions import (
-    JSD,
     ME10,
     R2,
     mae,

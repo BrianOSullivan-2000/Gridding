@@ -55,14 +55,24 @@ def base_grid_plot(grid, stations=None,
         locator = MaxNLocator(nbins=nbreaks)
         breaks = locator.tick_values(ymin, ymax)
 
+    positions = np.linspace(0, 1, len(color_palette))**bias
+
     custom_cmap = mcolors.LinearSegmentedColormap.from_list(
-        "custom_palette", 
-        color_palette
+        "custom_palette",
+        list(zip(positions, color_palette))
     )
-    color_breaks = np.linspace(0, 1, len(breaks) - 1) ** (1 / bias)
-    color_palette = [mcolors.to_hex(custom_cmap(x)) for x in color_breaks]
+
+    color_palette = [
+        mcolors.to_hex(custom_cmap(x))
+        for x in np.linspace(0, 1, len(breaks) - 1)
+    ]
+
     cmap = mcolors.ListedColormap(color_palette)
-    norm = mcolors.BoundaryNorm(breaks, ncolors=len(color_palette), clip=True)
+    norm = mcolors.BoundaryNorm(
+        breaks,
+        ncolors=len(color_palette),
+        clip=True
+    )
 
     new_plot = False
     if ax is None:

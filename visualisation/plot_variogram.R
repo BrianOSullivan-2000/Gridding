@@ -142,10 +142,6 @@ plot_spatio_temporal_variogram <- function(
     time_label = "Time"
 ) {
 
-    ## TODO - Add in some curve specification/fitting
-    ## it's much harder to get heuristic starting values
-    ## for this compared to the spatial-only case
-
     # df               -data (needs coordinate columns east + north + t)
     # response         -name of quantity to be plotted
     # spatial_cutoff   -spatial cutoff of empirical variogram
