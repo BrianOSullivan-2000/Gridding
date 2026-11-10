@@ -652,7 +652,7 @@ train_df <- bind_rows(train_df)
 
 # %%
 
-## Spatio-tepmoral methods seem promising for Daily Temperature
+## Spatio-temporal methods seem promising for Daily Temperature
 ## That does mean we need a new CV scheme, so I'll set one
 ## up here (5-fold)
 

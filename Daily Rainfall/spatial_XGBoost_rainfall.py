@@ -154,10 +154,10 @@ metrics_table = collect_metrics(
 )
 print(metrics_table.to_string(index=False))
 
-metrics_table.to_csv(
-    "Results/Daily_Rainfall/train_test_80_20_2016-2025/spatial_XGBoost.csv",
-    index=False,
-)
+# metrics_table.to_csv(
+#     "Results/Daily_Rainfall/train_test_80_20_2016-2025/spatial_XGBoost.csv",
+#     index=False,
+# )
 
 # %%
 
@@ -239,7 +239,13 @@ print(np.nanmean(grid_times))
 
 ## Things to check
 
-## Use LTA as predictor instead of in normalization
 ## Different basis functions (number, support, and type)
 ## Higher max_depths, higher lambdas
 ## Maybe subsample at 0.3, or colsubsample at 0.3?
+
+## Use LTA as predictor instead of in normalization
+## (So at the moment, it's worse. But, I want to run
+## it through the hyperparameter optimization scheme
+## that I have set up in the rough work)
+## See it's overall performance is worse, but I
+## also think it's better at not overfitting

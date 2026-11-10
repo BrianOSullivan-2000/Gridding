@@ -205,5 +205,6 @@ daily_rain_plot <- function(grid, daily_rain_data, plot_destination) {
     )
 }
 
+# last_update <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
 
 # save.image(file = "Data/Daily_Rainfall/train_test_80_20_2016-2025.RData")

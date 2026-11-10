@@ -330,7 +330,10 @@ station_types <- station_types |>
     filter(stno %in% c(ROI_rainfall$stno, NI_rainfall$stno))
 
 ## Function for checking nearby stations
-remove_close_stations <- function(data, threshold = 200) {
+remove_close_stations <- function(
+    data, threshold = 200, return_all = FALSE
+) {
+
     stnos <- unique(data$stno)
     coords <- station_geodata |>
         filter(stno %in% stnos) |>
@@ -367,25 +370,42 @@ remove_close_stations <- function(data, threshold = 200) {
         arr.ind = TRUE
     )
 
-    ## Drop worse station from each pair
-    removed_stnos <- c()
-    for (k in seq_len(nrow(close_pairs))) {
-        i <- close_pairs[k, 1]
-        j <- close_pairs[k, 2]
-        stno1 <- coords$stno[i]
-        stno2 <- coords$stno[j]
-        p1 <- coords$priority[coords$stno == stno1]
-        p2 <- coords$priority[coords$stno == stno2]
+    if (return_all) {
+        ## Get stnos of each close pair
+        close_stnos <-
+            matrix(NA, nrow = nrow(close_pairs), ncol = 2)
+        for (k in seq_len(nrow(close_pairs))) {
+            i <- close_pairs[k, 1]
+            j <- close_pairs[k, 2]
+            stno1 <- coords$stno[i]
+            stno2 <- coords$stno[j]
 
-        if (p1 < p2) {
-            removed_stnos <- c(removed_stnos, stno2)
-        } else if (p2 > p1) {
-            removed_stnos <- c(removed_stnos, stno1)
-        } else {
-            removed_stnos <- c(removed_stnos, stno2)
+            close_stnos[k, ] <-
+                c(stno1, stno2)
         }
+
+        close_stnos
+    } else {
+        ## Drop worse station from each pair
+        removed_stnos <- c()
+        for (k in seq_len(nrow(close_pairs))) {
+            i <- close_pairs[k, 1]
+            j <- close_pairs[k, 2]
+            stno1 <- coords$stno[i]
+            stno2 <- coords$stno[j]
+            p1 <- coords$priority[coords$stno == stno1]
+            p2 <- coords$priority[coords$stno == stno2]
+
+            if (p1 < p2) {
+                removed_stnos <- c(removed_stnos, stno2)
+            } else if (p2 > p1) {
+                removed_stnos <- c(removed_stnos, stno1)
+            } else {
+                removed_stnos <- c(removed_stnos, stno2)
+            }
+        }
+        removed_stnos
     }
-    removed_stnos
 }
 
 # %%
@@ -461,5 +481,109 @@ train_df <- bind_rows(train_df)
 # write.csv(
 #     test_df,
 #     "Data/Daily_Rainfall/folds/test_split_2016-2025.csv",
+#     row.names = FALSE
+# )
+
+# %%
+
+## We need a more thorough CV scheme. The 80-20 split was just a
+## preliminary, now we have methods we're happy with I will
+## check them with a more-in-depth 10-fold CV
+
+ROI_rainfall <- read.csv(
+    "Data/Daily_Rainfall/daily_rain_ROI_2016-2025.csv"
+)
+NI_rainfall <- read.csv(
+    "Data/Daily_Rainfall/daily_rain_NI_2016-2025.csv"
+)
+
+rainfall <- bind_rows(
+    ROI_rainfall,
+    NI_rainfall
+)
+
+close_stno_pairs <-
+    remove_close_stations(
+        rainfall |>
+            group_by(stno) |>
+            slice(1) |>
+            left_join(
+                station_geodata |>
+                    dplyr::select(east, north, stno),
+                by = "stno"
+            ) |>
+            left_join(station_types, by = "stno"),
+        threshold = 200,
+        return_all = TRUE
+    )
+
+## Folds need to be defined according to station
+set.seed(222)
+nfolds <- 10
+station_folds <- sample(unique(rainfall$stno))
+station_folds <- data.frame(
+    stno = station_folds,
+    fold = cut(
+        seq_along(station_folds),
+        breaks = nfolds,
+        labels = FALSE
+    )
+)
+
+## For close stations, manually set them to be in the same fold
+for (i in seq_len(nrow(close_stno_pairs))) {
+    stno_pair <- close_stno_pairs[i, ]
+    first_stno_fold <- station_folds[
+        station_folds$stno == stno_pair[1],
+    ]$fold
+    station_folds <- station_folds |>
+        mutate(
+            fold = if_else(
+                stno == stno_pair[2],
+                first_stno_fold,
+                fold
+            )
+        )
+}
+
+station_folds |>
+    filter(stno %in% close_stno_pairs)
+
+rainfall <- rainfall |>
+    dplyr::left_join(station_folds, by = "stno")
+
+## Randomly sample 200 days
+set.seed(222)
+sample_200_days <- sample(
+    seq(as.Date("2016-01-01"), as.Date("2025-12-31"), by = "day"),
+    200,
+    replace = FALSE
+)
+sample_200_days <- sort(sample_200_days)
+sample_dates <- data.frame(
+    year = as.integer(format(sample_200_days, "%Y")),
+    month = as.integer(format(sample_200_days, "%m")),
+    day = as.integer(format(sample_200_days, "%d"))
+)
+
+## Pull those days from the data
+rainfall <-
+    rainfall |>
+    dplyr::semi_join(sample_dates, by = c("year", "month", "day")) |>
+    dplyr::distinct(year, month, day, east, north, .keep_all = TRUE) |>
+    group_by(year, month, day) |>
+    group_split()
+
+rainfall <- rainfall |>
+    bind_rows() |>
+    filter(ind == 0 | is.na(ind))
+
+# write.csv(
+#     rainfall,
+#     paste0(
+#         "Data/Daily_Rainfall/folds/",
+#         nfolds,
+#         "fold_2016-2025.csv"
+#     ),
 #     row.names = FALSE
 # )

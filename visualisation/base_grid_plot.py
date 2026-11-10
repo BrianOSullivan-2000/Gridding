@@ -16,6 +16,8 @@ def base_grid_plot(grid, stations=None,
                    color_palette=None, bias = 1,
                    breaks=None, nbreaks=10, ymin=None, ymax=None,
 
+                   station_size = 50,
+
                    fig_size=(12, 12), save_file=None, ax=None,
 
                    include_cbar=True, include_axis=True):
@@ -124,7 +126,7 @@ def base_grid_plot(grid, stations=None,
             c=stations[response],
             cmap=cmap,
             norm=norm,
-            s=50,
+            s=station_size,
             edgecolors="black",
             linewidth=0.5,
             zorder=10

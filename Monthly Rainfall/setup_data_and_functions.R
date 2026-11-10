@@ -311,4 +311,6 @@ monthly_rain_CI_plot <- function(
     )
 }
 
+# last_update <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+
 # save.image(file = "Data/Monthly_Rainfall/train_test_80_20_2016-2025.RData")
