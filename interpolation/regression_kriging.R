@@ -12,7 +12,11 @@
 
 ################################################################################
 
-source("utilities/variogram.R")
+## Load in variogram function
+.file <- sys.frame(1)$ofile
+.dir <- dirname(normalizePath(.file, mustWork = TRUE))
+source(file.path(.dir, "..", "utilities", "variogram.R"))
+rm(.file, .dir)
 
 regression_kriging <- function(df, new_df, coords, new_coords,
                                regression_method,
