@@ -498,3 +498,116 @@ metrics_table <-
 #     ),
 #     row.names = FALSE
 # )
+
+# %%
+
+## Let's plot some grids and check computation time
+
+times <- c()
+
+source("regression/random_forest.R")
+cutoff <- 400000
+width <- 20000
+vgm_model <- "Exp"
+
+plot_grid <- grid_geodata[c("east", "north")]
+
+for (date_index in seq_len(nrow(dates))[1:70]) {
+
+    st <- Sys.time()
+
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data,
+            dates,
+            date_index,
+            experiment_type = "all_data"
+        )
+
+    y_hat_maxt <-
+        regression_kriging(
+            daily_temperature_data,
+            grid_geodata,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            regression_method = Random_Forest,
+            formula = f_maxt,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0,
+
+            mtry = 5,
+            min.node.size = 1
+
+        )$var1.pred
+
+
+    y_hat_mint <-
+        regression_kriging(
+            daily_temperature_data,
+            grid_geodata,
+            daily_temperature_data[c("east", "north")],
+            grid_geodata[c("east", "north")],
+
+            regression_method = Random_Forest,
+            formula = f_mint,
+
+            cutoff = cutoff,
+            width = width,
+            vgm_model = vgm_model,
+
+            nmax = Inf,
+            flex_fit = TRUE,
+            debug.level = 0,
+
+            mtry = 5,
+            min.node.size = 1
+        )$var1.pred
+
+    grid_geodata$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    grid_geodata$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
+        grid_geodata,
+        daily_temperature_data,
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/RK_Exp_RF/RK_Exp_RF_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    et <- Sys.time()
+    times <- c(times, et - st)
+
+    print(
+        paste0(
+            date_index, "    ",
+            current_day, "-",
+            current_month, "-",
+            current_year
+        )
+    )
+}
+
+print(
+    paste(
+        "Mean Time",
+        mean(times, na.rm = TRUE)
+    )
+)

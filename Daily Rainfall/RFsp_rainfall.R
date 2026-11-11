@@ -83,14 +83,14 @@ metrics_table <-
     )
 print(metrics_table)
 
-write.csv(
-    metrics_table,
-    paste0(
-        "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
-        "RFsp.csv"
-    ),
-    row.names = FALSE
-)
+# write.csv(
+#     metrics_table,
+#     paste0(
+#         "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
+#         "RFsp.csv"
+#     ),
+#     row.names = FALSE
+# )
 
 # %%
 

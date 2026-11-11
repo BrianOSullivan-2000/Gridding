@@ -154,7 +154,11 @@ fdaPDE_noPDE <- function(df, new_df, coords, new_coords,
     fda_formula <- update(formula, . ~ . + basis_functions)
 
     ## Set up spatial regression model note the formula needs to be updated too
-    model <- sr(formula = fda_formula, data = gf)
+    model <- get(".sr", envir = asNamespace("fdaPDE2"))$new(
+        formula = paste(deparse(fda_formula), collapse = " "),
+        data = gf,
+        penalty = NULL
+    )
 
     ## Fit model (either fit fixed lambda or gcv grid search)
     if (is.na(lambda)) {

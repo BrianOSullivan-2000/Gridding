@@ -95,11 +95,11 @@ metrics_table <-
 
 print(metrics_table)
 
-# write.csv(
-#     metrics_table,
-#     "Results/Daily_Rainfall/ten_fold_CV_2016-2025/IDW.csv",
-#     row.names = FALSE
-# )
+write.csv(
+    metrics_table,
+    "Results/Daily_Rainfall/ten_fold_CV_2016-2025/IDW.csv",
+    row.names = FALSE
+)
 
 final_results <- bind_cols(
     final_results,
@@ -178,11 +178,11 @@ metrics_table <-
 
 print(metrics_table)
 
-# write.csv(
-#     metrics_table,
-#     "Results/Daily_Rainfall/ten_fold_CV_2016-2025/RK_Exp_MLR.csv",
-#     row.names = FALSE
-# )
+write.csv(
+    metrics_table,
+    "Results/Daily_Rainfall/ten_fold_CV_2016-2025/RK_Exp_MLR.csv",
+    row.names = FALSE
+)
 
 final_results <- bind_cols(
     final_results,
@@ -194,6 +194,82 @@ final_results <- bind_cols(
 ## Likelihood-based Kriging (MLE)
 
 source("interpolation/MLE_kriging.R")
+
+f <- y ~ east + north
+
+for (fold_idx in seq_along(unique(rain_data$fold))) {
+
+    print(paste0("Starting Fold ", fold_idx))
+    fold_time <- Sys.time()
+
+    for (date_index in seq_len(nrow(dates))) {
+
+        daily_rain_data <-
+            get_daily_rain_data(
+                rain_data,
+                dates,
+                date_index,
+                current_fold = fold_idx
+            )
+
+        y_hat <-
+            MLE_kriging(
+                daily_rain_data$train,
+                daily_rain_data$test,
+                daily_rain_data$train[c("east", "north")],
+                daily_rain_data$test[c("east", "north")],
+
+
+                cov_function = "Exp",
+
+                formula = f,
+
+                init_pars = c(0.001, 0.0001, 150),
+                lower = c(1e-8, 0, 10),
+                upper = c(0.05, 0.01, 500)
+            )$pred
+
+        rain_data <-
+            update_daily_predictions(
+                rain_data,
+                y_hat,
+                dates,
+                date_index,
+                current_fold = fold_idx
+            )
+
+        print(paste0(
+            "Date index ", date_index, " completed"
+        ))
+    }
+
+    print(paste0(
+        "Fold ", fold_idx, " completed in ",
+        Sys.time() - fold_time
+    ))
+}
+
+
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "Regression Kriging",
+        rain_data
+    )
+
+write.csv(
+    metrics_table,
+    "Results/Daily_Rainfall/ten_fold_CV_2016-2025/MLE_Kriging.csv",
+    row.names = FALSE
+)
+
+final_results <- bind_cols(
+    final_results,
+    data.frame(`MLE Kriging` = rain_data$predicted_rain)
+)
+
+
+# %%
 
 f <- y ~ east + north + points5
 
@@ -257,13 +333,21 @@ metrics_table <-
         rain_data
     )
 
-# write.csv(
-#     metrics_table,
-#     "Results/Daily_Rainfall/ten_fold_CV_2016-2025/MLE_Kriging_points5.csv",
-#     row.names = FALSE
-# )
+write.csv(
+    metrics_table,
+    "Results/Daily_Rainfall/ten_fold_CV_2016-2025/MLE_Kriging_points5.csv",
+    row.names = FALSE
+)
 
 final_results <- bind_cols(
     final_results,
-    data.frame(`MLE Kriging` = rain_data$predicted_rain)
+    data.frame(`MLE Kriging points5` = rain_data$predicted_rain)
 )
+
+# %%
+
+# write.csv(
+#     final_results,
+#     "Results/Daily_Rainfall/ten_fold_CV_2016-2025/final_results.csv",
+#     row.names = FALSE
+# )
