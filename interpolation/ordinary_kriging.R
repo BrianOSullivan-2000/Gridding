@@ -43,7 +43,7 @@ ordinary_kriging <- function(y, coords, new_coords,
     coordinates(newdata) <- c("east", "north")
 
     # Fit spatial variogram to values
-    fit_vgm <- spatial_variogram_kriging(data, ...)
+    fit_vgm <- spatial_variogram(data, ...)
 
     # Interpolate values with ordinary kriging
     krig_df <- krige(
