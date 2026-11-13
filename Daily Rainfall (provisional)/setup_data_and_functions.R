@@ -6,7 +6,11 @@ rm(list = ls())
 ## Station geodata and LTAs
 station_geodata <- read.csv(
     "Data/General/station_geodata.csv"
-)
+) |>
+    mutate(
+        aspect_10km_cos = cos(aspect_10km),
+        aspect_10km_sin = sin(aspect_10km)
+    )
 station_LTAs_6190 <- read.csv(
     "Data/General/LTAs/Rainfall/LTAs_Rainfall_stations_1961-1990.csv"
 )
@@ -18,7 +22,11 @@ station_LTAs_9120 <- read.csv(
 ## Grid geodata and LTAs
 grid_geodata <- read.csv(
     "Data/General/grid_geodata.csv"
-)
+) |>
+    mutate(
+        aspect_10km_cos = cos(aspect_10km),
+        aspect_10km_sin = sin(aspect_10km)
+    )
 grid_LTAs_6190 <- read.csv(
     "Data/General/LTAs/Rainfall/LTAs_Rainfall_grid_1961-1990.csv"
 )

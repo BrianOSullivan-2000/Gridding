@@ -107,7 +107,7 @@ print(metrics_table)
 
 # write.csv(
 #     metrics_table,
-#     "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/IDW_GLS.csv",
+#     "Results/Monthly_Rainfall/ten_fold_2016-2025/IDW_GLS.csv",
 #     row.names = FALSE
 # )
 
@@ -208,7 +208,7 @@ print(metrics_table)
 
 write.csv(
     metrics_table,
-    "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/RK_Exp_MLR.csv",
+    "Results/Monthly_Rainfall/ten_fold_2016-2025/RK_Exp_MLR.csv",
     row.names = FALSE
 )
 
@@ -290,7 +290,7 @@ print(metrics_table)
 
 # write.csv(
 #     metrics_table,
-#     "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/MLE_Kriging.csv",
+#     "Results/Monthly_Rainfall/ten_fold_2016-2025/MLE_Kriging.csv",
 #     row.names = FALSE
 # )
 
@@ -301,6 +301,6 @@ final_results <- bind_cols(
 
 # write.csv(
 #     final_results,
-#     "Results/Monthly_Rainfall/ten_fold_CV_2016-2025/final_results.csv",
+#     "Results/Monthly_Rainfall/ten_fold_2016-2025/final_results.csv",
 #     row.names = FALSE
 # )
