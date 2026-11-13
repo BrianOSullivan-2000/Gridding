@@ -161,8 +161,8 @@ spatio_temporal_variogram <- function(
 
     vgm_progress = FALSE,
     plot_vgm = FALSE,
-    return_emp_vgm = TRUE
-
+    return_emp_vgm = FALSE,
+    no_fit = FALSE
 ) {
 
     # df               -input dataframe. Assumes coordinates east, north, t,
@@ -196,6 +196,7 @@ spatio_temporal_variogram <- function(
     # vgm_progress     -show progress bar when generating variogram
     # plot_vgm         -option to plot the variogram
     # return_emp_vgm   -if TRUE, return empirical variogram only
+    # no_fit           -if TRUE, don't fit vgm_model just give initial one
 
     require(sp)
     require(gstat)
@@ -207,18 +208,13 @@ spatio_temporal_variogram <- function(
         any(is.na(c(s_cutoff, s_width, t_cutoff, t_width))) &&
             flex_vgm == FALSE
     ) {
-        ## Find parameters that are missing
-        params <- c("s_cutoff", "s_width", "t_cutoff", "t_width")[
-            is.na(c(s_cutoff, s_width, t_cutoff, t_width))
-        ]
-        params <- paste(params, collapse = ", ")
 
         ## Warning message
-        warning <- paste0(
-            "No values assigned to variogram parameters. 
-            Either assign them manually (recommended) or use flex_vgm. 
-            Parameters missing are ", params, "."
+        warning <- paste(
+            "No values assigned to empirical variogram parameters.",
+            "Either assign them manually (recommended) or use flex_vgm."
         )
+        stop(warning)
     }
 
     if (
@@ -227,28 +223,12 @@ spatio_temporal_variogram <- function(
             flex_fit == FALSE
     ) {
 
-        pars <- c(s_pars, t_pars)
-        par_list <- c(
-            "s_psill", "s_range", "s_nugget",
-            "t_psill", "t_range", "t_nugget"
-        )
-
-        if (vgm_model == "sumMetric") {
-            pars <- c(pars, j_pars)
-            par_list <- c(
-                par_list,
-                "j_psill", "j_range", "j_nugget",
-            )
-        }
-
-        missing_pars <- is.na(pars)
-
         ## Warning message
-        warning <- paste0(
-            "No values assigned to variogram parameters. 
-            Either assign them manually (recommended) or use flex_vgm. 
-            Parameters missing are ", pars[missing_pars], "."
+        warning <- paste(
+            "Missing values for variogram model parameters.",
+            "Either assign them manually (recommended) or use flex_fit."
         )
+        stop(warning)
     }
 
     ## Heuristics for empirical variogram
@@ -289,6 +269,7 @@ spatio_temporal_variogram <- function(
     )
 
     if (plot_vgm) {
+        zmax <- max(emp_vgmst$gamma, na.rm = TRUE)
 
         vgm_plot <-
             plot_spatio_temporal_variogram(
@@ -297,14 +278,15 @@ spatio_temporal_variogram <- function(
                 spatial_cutoff = s_cutoff,
                 spatial_width = s_width,
                 temporal_cutoff = t_cutoff,
-                temporal_width = t_width
+                temporal_width = t_width,
+                zmax = zmax
             )
 
         print(vgm_plot)
     }
 
     if (return_emp_vgm) {
-        emp_vgmst
+        return(emp_vgmst)
     }
 
     ## Flexible initial values for variogram
@@ -386,7 +368,7 @@ spatio_temporal_variogram <- function(
 
     if (any(is.na(parscales))) {
 
-        magnitude <- function(x) {
+        mag <- function(x) {
             10^(ceiling(log10(x))) / 100
         }
 
@@ -427,7 +409,7 @@ spatio_temporal_variogram <- function(
     ## Heuristics for upper and lower limits
     if (any(is.na(lower_limits)) || any(is.na(upper_limits))) {
 
-        if (vgm_model == "seperable") {
+        if (vgm_model == "separable") {
             default_lower_limits <-
                 c(
                     min(emp_vgmst$dist[emp_vgmst$dist > 0], na.rm = TRUE),
@@ -538,9 +520,9 @@ spatio_temporal_variogram <- function(
     )
 
     ## Set up model
-    if (vgm_model == "seperable") {
+    if (vgm_model == "separable") {
         vgm_model_config <- vgmST(
-            "seperable",
+            "separable",
             sill = s_pars[1] * t_pars[1],
             space = spatial_vgm,
             time = temporal_vgm
@@ -571,23 +553,46 @@ spatio_temporal_variogram <- function(
     }
 
     if (no_fit) {
-        vgm_model_config
+        fit_vgmst <- vgm_model_config
+    } else {
+
+        fit_vgmst <- fit.StVariogram(
+            emp_vgmst,
+            vgm_model_config,
+            fit.method = fit.method,
+            stAni = stAni,
+            method = "L-BFGS-B",
+
+            control = list(
+                parscale = parscales,
+                maxit = maxit
+            ),
+            lower = lower_limits,
+            upper = upper_limits
+        )
     }
 
-    fit_vgmst <- fit.StVariogram(
-        emp_vgmst,
-        vgm_model_config,
-        fit.method = fit.method,
-        stAni = stAni,
-        method = "L-BFGS-B",
+    if (plot_vgm) {
+        fitted_surface <- variogramSurface(
+            fit_vgmst,
+            data.frame(
+                spacelag = as.numeric(emp_vgmst$spacelag),
+                timelag = as.numeric(emp_vgmst$timelag)
+            )
+        )
 
-        control = list(
-            parscale = parscales,
-            maxit = maxit
-        ),
-        lower = lower_limits,
-        upper = upper_limits
-    )
+        print(
+            plot_spatio_temporal_variogram(
+                df = df,
+                vgmst = fitted_surface,
+                spatial_cutoff = s_cutoff,
+                spatial_width = s_width,
+                temporal_cutoff = t_cutoff,
+                temporal_width = t_width,
+                zmax = zmax
+            )
+        )
+    }
 
     fit_vgmst
 }

@@ -36,31 +36,3 @@ for (fold_idx in seq_along(unique(temperature_data$fold))) {
 
     }
 }
-
-# %%
-
-prepared_temperature_data <-
-    get_temperature_data(
-        temperature_data,
-        current_fold = 1
-    )
-
-df <- prepared_temperature_data$train |>
-    filter(t >= 1, t <= 50)
-df$y <- df$y_maxt
-
-source("utilities/variogram.R")
-
-vgmst <-
-    spatio_temporal_variogram(
-        df,
-
-        flex_vgm = FALSE,
-        vgm_model = "separable",
-
-        s_cutoff = 350000, s_width = 15000,
-        t_cutoff = 10, t_width = 1,
-        vgm_progress = TRUE,
-        plot_vgm = TRUE
-    )
-vgmst

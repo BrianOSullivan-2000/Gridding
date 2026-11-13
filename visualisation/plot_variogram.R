@@ -136,20 +136,25 @@ plot_spatial_variogram <- function(
 
 plot_spatio_temporal_variogram <- function(
     df,
-    vgmst = NULL,
     response = "y",
+    vgmst = NULL,
+    fit_vgmst = NULL,
     spatial_cutoff = 400000, spatial_width = 20000,
     temporal_cutoff = 12, temporal_width = 1,
-    time_label = "Time"
+    time_label = "Time",
+    zmax = NULL
 ) {
 
     # df               -data (needs coordinate columns east + north + t)
     # response         -name of quantity to be plotted
+    # vgmsst           -can provide pre-made empirical variogram
+    # fit_vgmst        -can provide fitted curve to variogram
     # spatial_cutoff   -spatial cutoff of empirical variogram
     # spatial_width    -spatial width of empirical variogram
     # temporal_cutoff  -temporal cutoff of empirical variogram
     # temporal_width   -temporal width of empirical variogram
     # time_label       -label for temporal axis (e.g. "Days")
+    # zmax             -max plot limit for the variogram values
 
     ## Load in packages
     require(sp)
@@ -181,12 +186,11 @@ plot_spatio_temporal_variogram <- function(
     }
 
     ## Need to make space and time lags numeric for plotting
-    # spacelags <- seq(0, spatial_cutoff, by = spatial_width)
-    # timelags <- seq(0, temporal_cutoff, by = temporal_width)
-    # vgmst$spacelag <- rep(spacelags, length(timelags))
-    # vgmst$timelag <- rep(timelags, each = length(spacelags))
     vgmst$spacelag <- as.numeric(vgmst$spacelag)
     vgmst$timelag <- as.numeric(vgmst$timelag)
+    if (is.null(zmax)) {
+        zmax <- max(vgmst$gamma, na.rm = TRUE)
+    }
 
     col <- bpy.colors()
 
@@ -205,8 +209,17 @@ plot_spatio_temporal_variogram <- function(
         ),
         xlab = list("Distance (m)", cex = 1.5, rot = 30),
         ylab = list(time_label, cex = 1.5, rot = -35),
-        zlab = "", zlim = c(0, max(vgmst$gamma)), zoom = 0.95
+        zlab = "", zlim = c(0, zmax), zoom = 0.95
     )
 
-    vgmst_plot
+    if (!missing(fit_vgmst)) {
+
+        ## Plot the curve too
+
+        print("TODO Implement curve plotting")
+
+        vgmst_plot
+    } else {
+        vgmst_plot
+    }
 }
