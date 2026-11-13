@@ -136,6 +136,7 @@ plot_spatial_variogram <- function(
 
 plot_spatio_temporal_variogram <- function(
     df,
+    vgmst = NULL,
     response = "y",
     spatial_cutoff = 400000, spatial_width = 20000,
     temporal_cutoff = 12, temporal_width = 1,
@@ -155,34 +156,39 @@ plot_spatio_temporal_variogram <- function(
     require(gstat)
     require(lattice)
 
-    ## Empirical variogram formula
-    f <- as.formula(paste0(response, " ~ 1"))
+    if (missing(vgmst) || is.null(vgmst)) {
 
-    ## Need to set a start date (arbitrary)
-    start_date <- "1970-01-01"
+        ## Empirical variogram formula
+        f <- as.formula(paste0(response, " ~ 1"))
 
-    ## Create spatio-temporal sparse dataframe
-    points <- SpatialPoints(cbind(df$east, df$north))
-    times <- as.Date(df$t, origin = start_date)
-    STIDF <- STIDF(points, times, data = df)
-    STSDF <- as(STIDF, "STSDF")
+        ## Need to set a start date (arbitrary)
+        start_date <- "1970-01-01"
 
-    ## Calculate variogram
-    vgmst <- variogramST(
-        f,
-        data = STSDF,
-        tlags = seq(0, temporal_cutoff, by = temporal_width),
-        cutoff = spatial_cutoff, width = spatial_width,
-        progress = TRUE
-    )
+        ## Create spatio-temporal sparse dataframe
+        points <- SpatialPoints(cbind(df$east, df$north))
+        times <- as.Date(df$t, origin = start_date)
+        STIDF <- STIDF(points, times, data = df)
+        STSDF <- as(STIDF, "STSDF")
+
+        ## Calculate variogram
+        vgmst <- variogramST(
+            f,
+            data = STSDF,
+            tlags = seq(0, temporal_cutoff, by = temporal_width),
+            cutoff = spatial_cutoff, width = spatial_width,
+            progress = TRUE
+        )
+    }
 
     ## Need to make space and time lags numeric for plotting
-    spacelags <- seq(0, spatial_cutoff, by = spatial_width)
-    timelags <- seq(0, temporal_cutoff, by = temporal_width)
-    vgmst$spacelag <- rep(spacelags, length(timelags))
-    vgmst$timelag <- rep(timelags, each = length(spacelags))
+    # spacelags <- seq(0, spatial_cutoff, by = spatial_width)
+    # timelags <- seq(0, temporal_cutoff, by = temporal_width)
+    # vgmst$spacelag <- rep(spacelags, length(timelags))
+    # vgmst$timelag <- rep(timelags, each = length(spacelags))
     vgmst$spacelag <- as.numeric(vgmst$spacelag)
     vgmst$timelag <- as.numeric(vgmst$timelag)
+
+    col <- bpy.colors()
 
     ## Plotting
     vgmst_plot <- wireframe(

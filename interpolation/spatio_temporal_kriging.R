@@ -18,18 +18,18 @@ source(file.path(.dir, "..", "utilities", "variogram.R"))
 rm(.file, .dir)
 
 spatio_temporal_kriging <- function(
-    y,
     df,
     new_df,
+    response = "y",
     nmax = Inf,
     debug.level = 1,
     ...
 ) {
-    # y               -observed values of response
     # df              -data frame of input data
     # new_df          -data from of target data
     #                 NOTE both df and new_df require coordinate
     #                 columns east, north, and t
+    # response        -target variable to be interpolated
 
     # nmax            -number of neighbours to use for prediction
     # debug.level     -set to -1 to see progress of kriging
@@ -38,5 +38,13 @@ spatio_temporal_kriging <- function(
     require(sp)
     require(gstat)
     require(spacetime)
+
+    ## Get response data
+    y <- df[[response]]
+    df$y <- y
+
+    stVGM <- spatio_temporal_variogram(
+        df, ...
+    )
 
 }

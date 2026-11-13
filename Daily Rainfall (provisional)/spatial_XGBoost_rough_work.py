@@ -286,7 +286,7 @@ print(hyperparameter_results.head(10).to_string(index=False))
 
 # %%
 
-hyp2_figure_directory = Path("Figures/Daily_Rainfall_provisional/spatial_XGBoost_hyp")
+hyp2_figure_directory = Path("Figures/Daily_Rainfall_provisional/spatial_XGBoost_hyp_2")
 hyp2_figure_directory.mkdir(parents=True, exist_ok=True)
 
 first_day_results = pd.read_csv(results_path)

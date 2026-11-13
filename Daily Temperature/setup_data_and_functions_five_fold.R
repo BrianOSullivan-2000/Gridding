@@ -24,7 +24,10 @@ temperature_data <- read.csv(
     mutate(
         predicted_maxt = NA,
         predicted_mint = NA
-    )
+    ) |>
+    group_by(year, month, day) |>
+    mutate(t = cur_group_id()) |>
+    ungroup()
 
 dates <- temperature_data |>
     group_by(year, month, day) |>
