@@ -712,12 +712,20 @@ for (i in seq_len(nrow(close_stno_pairs))) {
         )
 }
 
-close_stno_pairs
-station_folds |>
-    filter(stno %in% close_stno_pairs)
+temperature <- temperature |>
+    dplyr::left_join(station_folds, by = "stno") |>
+    left_join(
+        station_geodata |>
+            dplyr::select(east, north, stno),
+        by = "stno"
+    )
 
 temperature <- temperature |>
-    dplyr::left_join(station_folds, by = "stno")
+    dplyr::distinct(
+        east, north,
+        year, month, day, .keep_all = TRUE
+    ) |>
+    dplyr::select(-east, -north)
 
 # write.csv(
 #     temperature,

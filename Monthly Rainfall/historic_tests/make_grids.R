@@ -1,7 +1,7 @@
-## I'm happy with MLE Kriging as a findal gridding method ##
+## I'm happy with MLE Kriging as a final gridding method ##
 ## for the monthly rainfall grids (modern + historic)     ##
 
-## I'll start by making 1883-1940 first
+## You can specify what years you want to grid
 
 # %%
 

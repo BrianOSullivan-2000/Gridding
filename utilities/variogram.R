@@ -594,5 +594,5 @@ spatio_temporal_variogram <- function(
         )
     }
 
-    fit_vgmst
+    list("vgmst" = fit_vgmst, "stAni" = stAni)
 }

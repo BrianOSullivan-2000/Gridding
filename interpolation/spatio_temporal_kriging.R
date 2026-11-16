@@ -22,7 +22,7 @@ spatio_temporal_kriging <- function(
     new_df,
     response = "y",
     nmax = Inf,
-    debug.level = 1,
+    progress = FALSE,
     ...
 ) {
     # df              -data frame of input data
@@ -32,8 +32,7 @@ spatio_temporal_kriging <- function(
     # response        -target variable to be interpolated
 
     # nmax            -number of neighbours to use for prediction
-    # debug.level     -set to -1 to see progress of kriging
-    #                 set to 0 for no printed output
+    # progress        -if TRUE, show progress bar during kriging
 
     require(sp)
     require(gstat)
@@ -43,8 +42,46 @@ spatio_temporal_kriging <- function(
     y <- df[[response]]
     df$y <- y
 
-    stVGM <- spatio_temporal_variogram(
+    ## Get fitted variogram
+    vgmst <- spatio_temporal_variogram(
         df, ...
     )
+    stAni <- vgmst$stAni
+    vgmst <- vgmst$vgmst
 
+    ## Get spatial points
+    points <- SpatialPoints(
+        cbind(df$east, df$north)
+    )
+    ## Create spatio-temporal sparse dataframes
+    STIDF <- STIDF(
+        points,
+        as.Date(df$t, origin = "1970-01-01"),
+        data = df
+    )
+    ST <- as(STIDF, "STSDF")
+
+    ## Repeat for new data
+    new_points <- SpatialPoints(
+        cbind(new_df$east, new_df$north)
+    )
+    new_STIDF <- STIDF(
+        new_points,
+        as.Date(new_df$t, origin = "1970-01-01"),
+        data = new_df
+    )
+    new_ST <- as(new_STIDF, "STSDF")
+
+    ## Kriging
+    krig_df <- krigeST(
+        y ~ 1,
+        ST,
+        new_ST,
+        vgmst,
+        stAni = stAni,
+        nmax = nmax,
+        progress = progress
+    )
+
+    krig_df
 }

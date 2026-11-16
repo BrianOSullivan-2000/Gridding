@@ -14,7 +14,6 @@ load("Data/Daily_Temperature/train_test_80_20_2025.RData")
 # %%
 
 ## Set up grid search for hyperparameters
-## Set up grid search for hyperparameters
 cutoffs <- c(200000, 250000, 300000, 350000, 400000)
 widths <- c(5000, 10000, 15000, 20000, 25000)
 hyperparameters <- expand.grid(cutoff = cutoffs, width = widths)
@@ -96,7 +95,6 @@ for (hyperparameter_index in seq_len(nrow(hyperparameters))) {
 
 # %%
 
-## Set up grid search for hyperparameters
 ## Set up grid search for hyperparameters
 nmaxs <- c(8, 12, 15, 20, 50, Inf)
 

@@ -60,8 +60,6 @@ for (fold_idx in seq_along(unique(temperature_data$fold))) {
 
     for (date_index in seq_len(nrow(dates))) {
 
-        # date_time <- Sys.time()
-
         daily_temperature_data <-
             get_daily_temperature_data(
                 temperature_data,
@@ -107,11 +105,6 @@ for (fold_idx in seq_along(unique(temperature_data$fold))) {
                 date_index,
                 current_fold = fold_idx
             )
-
-        # print(paste0(
-        #     "Date ", date_index, " completed in ",
-        #     Sys.time() - date_time
-        # ))
     }
 
     print(paste0(
@@ -125,7 +118,8 @@ metrics_table <-
     collect_metrics(
         metrics_table = NULL,
         "IDW RF",
-        temperature_data
+        temperature_data |>
+            as.data.frame()
     )
 
 # write.csv(
@@ -139,9 +133,9 @@ metrics_table <-
 ## Now spatio-temporal regression IDW
 
 ## Regression Formula
-f_maxt <- as.formula(
+f_RF <- as.formula(
     paste(
-        "y_maxt ~",
+        "y ~",
         paste(
             "east", "north",
             "points5",
@@ -153,25 +147,36 @@ f_maxt <- as.formula(
         )
     )
 )
+f_MLR <- as.formula((
+    paste(
+        "y ~",
+        paste(
+            "east", "north",
+            "points5",
+            sep = " + "
+        )
+    )
+))
 
-f_mint <- as.formula(
-    paste(
-        "y_mint ~",
-        paste(
-            "east", "north",
-            "points5",
-            "dist2c",
-            "n5", "s5", "e5", "w5",
-            "aspect_10km",
-            "month", "t",
-            sep = " + "
-        )
-    )
-)
+f_RF_maxt <- update(f_RF, y_maxt ~ .)
+f_RF_mint <- update(f_RF, y_mint ~ .)
+f_MLR_maxt <- update(f_MLR, y_maxt ~ .)
+f_MLR_mint <- update(f_MLR, y_mint ~ .)
 
 # %%
 
-regression_method <- MLR
+## Try two regression methods (MLR and Random Forect)
+regression_method <- Random_Forest
+
+if (all(deparse(regression_method) == deparse(MLR))) {
+    f_maxt <- f_MLR_maxt
+    f_mint <- f_MLR_mint
+}
+if (all(deparse(regression_method) == deparse(Random_Forest))) {
+    f_maxt <- f_RF_maxt
+    f_mint <- f_RF_mint
+}
+
 idp <- 1
 nmax <- 15
 C <- 75000
@@ -237,15 +242,16 @@ for (fold_idx in seq_along(unique(temperature_data$fold))) {
 metrics_table <-
     collect_metrics(
         metrics_table = NULL,
-        "ST IDW MLR",
-        temperature_data
+        "ST IDW RF",
+        temperature_data |>
+            as.data.frame()
     )
 
 print(metrics_table)
 
 # write.csv(
 #     metrics_table,
-#     "Results/Daily_Temperature/train_test_five_fold_2025/ST_IDW_MLR.csv",
+#     "Results/Daily_Temperature/train_test_five_fold_2025/ST_IDW_RF.csv",
 #     row.names = FALSE
 # )
 
@@ -254,6 +260,28 @@ print(metrics_table)
 ## Experimental check
 ## What if we tried just one month at a time
 ## rather than the entire year all at once
+
+## Regression Formula
+f_XGB <- as.formula(
+    paste(
+        "y ~",
+        paste(
+            "east", "north",
+            "points5",
+            "dist2c",
+            "n5", "s5", "e5", "w5",
+            "aspect_10km",
+            "month", "t",
+            sep = " + "
+        )
+    )
+)
+
+f_XGB_maxt <- update(f_XGB, y_maxt ~ .)
+f_XGB_mint <- update(f_XGB, y_mint ~ .)
+
+f_maxt <- f_XGB_maxt
+f_mint <- f_XGB_mint
 
 regression_method <- XGBOOST
 idp <- 1
@@ -343,7 +371,8 @@ metrics_table <-
     collect_metrics(
         metrics_table = NULL,
         "ST IDW XGB",
-        temperature_data
+        temperature_data |>
+            as.data.frame()
     )
 
 print(metrics_table)
@@ -353,3 +382,293 @@ print(metrics_table)
 #     "Results/Daily_Temperature/train_test_five_fold_2025/ST_IDW_XGB.csv",
 #     row.names = FALSE
 # )
+
+
+# %%
+
+## Let's make some plots
+
+plot_grid <- grid_geodata
+
+for (date_index in seq_len(nrow(dates))) {
+
+    current_day <- dates[date_index, ]$day
+    current_month <- dates[date_index, ]$month
+    current_year <- dates[date_index, ]$year
+
+    ## First spatial IDW RF
+    daily_temperature_data <-
+        get_daily_temperature_data(
+            temperature_data,
+            dates,
+            date_index,
+            experiment_type = "all_data"
+        )
+
+    y_hat_maxt <-
+        regression_IDW(
+            daily_temperature_data,
+            plot_grid,
+            daily_temperature_data[c("east", "north")],
+            plot_grid[c("east", "north")],
+            formula = spatial_f_maxt,
+            regression_method = Random_Forest,
+            mtry = 5,
+            min.node.size = 1,
+            idp = 1,
+            nmax = 15
+        )$var1.pred
+
+    y_hat_mint <-
+        regression_IDW(
+            daily_temperature_data,
+            plot_grid,
+            daily_temperature_data[c("east", "north")],
+            plot_grid[c("east", "north")],
+            formula = spatial_f_mint,
+            regression_method = Random_Forest,
+            mtry = 5,
+            min.node.size = 1,
+            idp = 1,
+            nmax = 15
+        )$var1.pred
+
+    plot_grid$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    plot_grid$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
+        plot_grid,
+        daily_temperature_data,
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/five_fold_tests/",
+            "IDW_RF/IDW_RF_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+
+    ## ST IDW (MLR)
+    f_maxt <- f_MLR_maxt
+    f_mint <- f_MLR_mint
+
+    prepared_temperature_data <-
+        get_temperature_data(
+            temperature_data,
+            current_fold = fold_idx,
+            experiment_type = "all_data"
+        )
+
+    plot_grid$t <- which(
+        (dates$day == current_day) &
+            (dates$month == current_month) &
+            (dates$year == current_year)
+    )
+
+    idp <- 1
+    nmax <- 15
+    C <- 50000
+
+    y_hat_maxt <-
+        spatio_temporal_regression_IDW(
+            prepared_temperature_data,
+            plot_grid,
+            prepared_temperature_data[c("east", "north", "t")],
+            plot_grid[c("east", "north", "t")],
+
+            regression_method = MLR,
+            formula = f_maxt,
+
+            idp = idp,
+            nmax = nmax,
+            C = C
+        )$var1.pred
+
+    y_hat_mint <-
+        spatio_temporal_regression_IDW(
+            prepared_temperature_data,
+            plot_grid,
+            prepared_temperature_data[c("east", "north", "t")],
+            plot_grid[c("east", "north", "t")],
+
+            regression_method = MLR,
+            formula = f_mint,
+
+            idp = idp,
+            nmax = nmax,
+            C = C
+        )$var1.pred
+
+
+    grid_geodata$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    grid_geodata$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
+        grid_geodata,
+        prepared_temperature_data |>
+            filter(month == current_month),
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/five_fold_tests/",
+            "ST_IDW_MLR/ST_IDW_MLR_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    ## ST IDW (RF)
+    f_maxt <- f_RF_maxt
+    f_mint <- f_RF_mint
+
+    C <- 50000
+    mtry <- 6
+    min.node.size <- 1
+
+    y_hat_maxt <-
+        spatio_temporal_regression_IDW(
+            prepared_temperature_data |>
+                filter(month == current_month),
+            plot_grid,
+            prepared_temperature_data |>
+                filter(month == current_month) |>
+                dplyr::select(east, north, t),
+            plot_grid[c("east", "north", "t")],
+
+            regression_method = Random_Forest,
+            formula = update(f_maxt, . ~ . - month),
+
+            idp = idp,
+            nmax = nmax,
+            C = C,
+            mtry = mtry,
+            min.node.size = min.node.size
+        )$var1.pred
+
+    y_hat_mint <-
+        spatio_temporal_regression_IDW(
+            prepared_temperature_data |>
+                filter(month == current_month),
+            plot_grid,
+            prepared_temperature_data |>
+                filter(month == current_month) |>
+                dplyr::select(east, north, t),
+            plot_grid[c("east", "north", "t")],
+
+            regression_method = Random_Forest,
+            formula = update(f_mint, . ~ . - month),
+
+            idp = idp,
+            nmax = nmax,
+            C = C,
+            mtry = mtry,
+            min.node.size = min.node.size
+        )$var1.pred
+
+    grid_geodata$maxt <-
+        y_hat_maxt + LTAs_max_9120[[paste0("m_", current_month)]]
+
+    grid_geodata$mint <-
+        y_hat_mint + LTAs_min_9120[[paste0("m_", current_month)]]
+
+    daily_temperature_plot(
+        grid_geodata,
+        prepared_temperature_data |>
+            filter(month == current_month),
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/five_fold_tests/",
+            "ST_IDW_RF/ST_IDW_RF_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+
+    ## ST IDW (XGB once per month)
+    f_maxt <- f_XGB_maxt
+    f_mint <- f_XGB_mint
+
+    nrounds <- 100
+    max_depth <- 6
+    learning_rate <- 0.001
+    min_child_weight <- 1
+    subsample <- 0.2
+    colsample_bytree <- 1
+
+    y_hat_maxt <-
+        spatio_temporal_regression_IDW(
+            prepared_temperature_data |>
+                filter(month == current_month),
+            plot_grid,
+            prepared_temperature_data |>
+                filter(month == current_month) |>
+                dplyr::select(east, north, t),
+            plot_grid[c("east", "north", "t")],
+            regression_method = XGBOOST,
+            formula = update(f_maxt, . ~ . - month),
+            idp = idp,
+            nmax = nmax,
+            C = C,
+            nrounds = nrounds,
+            max_depth = max_depth,
+            learning_rate = learning_rate,
+            min_child_weight = min_child_weight,
+            subsample = subsample,
+            colsample_bytree = colsample_bytree
+        )$var1.pred
+
+    y_hat_mint <-
+        spatio_temporal_regression_IDW(
+            prepared_temperature_data |>
+                filter(month == current_month),
+            plot_grid,
+            prepared_temperature_data |>
+                filter(month == current_month) |>
+                dplyr::select(east, north, t),
+            plot_grid[c("east", "north", "t")],
+            regression_method = XGBOOST,
+            formula = update(f_mint, . ~ . - month),
+            idp = idp,
+            nmax = nmax,
+            C = C,
+            nrounds = nrounds,
+            max_depth = max_depth,
+            learning_rate = learning_rate,
+            min_child_weight = min_child_weight,
+            subsample = subsample,
+            colsample_bytree = colsample_bytree
+        )$var1.pred
+
+    daily_temperature_plot(
+        grid_geodata,
+        daily_temperature_data |>
+            filter(month == current_month),
+        plot_destination = paste0(
+            "Figures/Daily_Temperature/five_fold_tests/",
+            "ST_IDW_XGB/ST_IDW_XGB_",
+            current_year, "_",
+            sprintf("%02d", current_month), "_",
+            sprintf("%02d", current_day),
+            ".jpg"
+        )
+    )
+
+    print(
+        paste0(
+            date_index, "    ",
+            current_day, "-",
+            current_month, "-",
+            current_year
+        )
+    )
+}

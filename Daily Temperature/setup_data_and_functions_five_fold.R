@@ -1,4 +1,6 @@
 
+rm(list = ls())
+
 ## Load earlier dependencies
 load("Data/Daily_Temperature/train_test_80_20_2025.RData")
 
@@ -321,4 +323,4 @@ cat(
     last_update, "\n"
 )
 
-# save.image(file = "Data/Daily_Temperature/train_test_five_fold_2025.RData")
+save.image(file = "Data/Daily_Temperature/train_test_five_fold_2025.RData")
