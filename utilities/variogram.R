@@ -13,7 +13,6 @@
 .file <- sys.frame(1)$ofile
 .dir <- dirname(normalizePath(.file, mustWork = TRUE))
 source(file.path(.dir, "..", "visualisation", "plot_variogram.R"))
-rm(.file, .dir)
 
 
 
@@ -496,10 +495,10 @@ spatio_temporal_variogram <- function(
     }
 
     ## If kappa isn't provided, just put in placeholder
-    if (is.na(s_pars[4])) {
+    if (length(s_pars) < 4) {
         s_pars[4] <- 1
     }
-    if (is.na(t_pars[4])) {
+    if (length(t_pars) < 4) {
         t_pars[4] <- 1
     }
 
@@ -545,9 +544,9 @@ spatio_temporal_variogram <- function(
 
         vgm_model_config <- vgmST(
             "sumMetric",
-            space = spatial,
-            time = temporal,
-            joint = joint,
+            space = spatial_vgm,
+            time = temporal_vgm,
+            joint = joint_vgm,
             stAni = stAni
         )
     }

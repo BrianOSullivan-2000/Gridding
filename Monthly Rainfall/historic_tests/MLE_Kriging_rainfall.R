@@ -56,7 +56,7 @@ for (date_index in seq_len(nrow(dates))) {
 
             init_pars = c(0.001, 0.0001, 150),
             lower = c(1e-8, 0, 10),
-            upper = c(0.05, 0.01, 500)
+            upper = c(0.5, 0.1, 1000)
         )$pred
 
     rain_data <- update_monthly_predictions(
@@ -92,6 +92,8 @@ times <- rep(NA, nrow(dates))
 
 plot_grid <- grid_geodata[c("east", "north")]
 
+date_index <- which((dates$year == 1936) & (dates$month == 1))
+
 for (date_index in seq_len(nrow(dates))) {
 
     current_day <- dates[date_index, ]$day
@@ -117,7 +119,7 @@ for (date_index in seq_len(nrow(dates))) {
 
             init_pars = c(0.001, 0.0001, 150),
             lower = c(1e-8, 0, 10),
-            upper = c(0.05, 0.01, 500)
+            upper = c(0.5, 0.1, 1000)
         )$pred
 
     grid_geodata$rain <-
@@ -128,7 +130,7 @@ for (date_index in seq_len(nrow(dates))) {
         monthly_rain_data,
         plot_destination = paste0(
             "Figures/Monthly_Rainfall/historic/",
-            "Kriging_MLE_Exp/Kriging_MLE_Exp_",
+            "Kriging_MLE_Exp/ATest_Kriging_MLE_Exp_",
             current_year, "_",
             sprintf("%02d", current_month), "_",
             sprintf("%02d", current_day),
@@ -195,7 +197,7 @@ for (date_index in seq_len(nrow(dates))) {
 
             init_pars = c(0.001, 0.0001, 150),
             lower = c(1e-8, 0, 10),
-            upper = c(0.05, 0.01, 500)
+            upper = c(0.5, 0.1, 1000)
         )$pred
 
     rain_data <- update_monthly_predictions(

@@ -15,7 +15,6 @@
 .file <- sys.frame(1)$ofile
 .dir <- dirname(normalizePath(.file, mustWork = TRUE))
 source(file.path(.dir, "..", "utilities", "variogram.R"))
-rm(.file, .dir)
 
 spatio_temporal_kriging <- function(
     df,

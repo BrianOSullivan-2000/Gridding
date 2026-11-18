@@ -121,7 +121,7 @@ for (date_index in seq_len(nrow(dates))) {
             formula = f,
             init_pars = c(0.001, 0.0001, 150),
             lower = c(1e-8, 0, 10),
-            upper = c(0.05, 0.01, 500),
+            upper = c(0.5, 0.1, 1000),
             return_CI = TRUE,
             CI_type = "trend",
             CI_level = 0.95

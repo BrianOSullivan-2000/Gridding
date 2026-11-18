@@ -150,3 +150,29 @@ for (current_year in years) {
 #         "grid_rainfall_", years[1], "_", years[length(years)], ".csv"
 #     )
 # )
+
+# %%
+
+library(dplyr)
+
+# rain_grids <- read.csv("Results/Monthly_Rainfall/Historic_Grids/grid_rainfall_1865_2023.csv")
+
+for (year in 1865:2023) {
+  
+  rain_years <- paste0(
+    "X", year, sprintf("%02d", 1:12)
+  )
+  
+  write.csv(
+    bind_cols(
+      rain_grids[c("east", "north")],
+      rain_grids[rain_years]
+    ),
+    file = paste0(
+      "Results/Monthly_Rainfall/Historic_Grids/grid_rainfall_",
+      year,
+      ".csv"
+    ),
+    row.names = FALSE
+  )
+}

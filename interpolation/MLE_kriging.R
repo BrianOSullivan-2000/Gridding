@@ -283,10 +283,14 @@ MLE_kriging <- function(
         }
     }
 
-    return(new_df)
-
     if (return_model) {
-        list("pars" = pars, "betahat" = betahat)
+        list(
+          "result" = new_df,
+          "pars" = pars,
+          "betahat" = betahat
+        )
+    } else {
+      new_df
     }
 }
 

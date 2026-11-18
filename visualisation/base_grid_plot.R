@@ -17,7 +17,7 @@ base_grid_plot <- function(grid, island_outline, stations = NA,
                            nbreaks = 20, bias = 1,
                            ymin = min(grid[response]),
                            ymax = max(grid[response]),
-                           plot_destination = NA) {
+                           plot_destination = NA, width = 7, height = 7) {
 
     # grid                  -dataframe with response value and coordinates
     #                       coordinates need to be labelled east, north
@@ -42,6 +42,7 @@ base_grid_plot <- function(grid, island_outline, stations = NA,
     # ymin, ymax            -limits of colour palette (I recommend doing
     #                       this manually for nice round numbers)
     # plot_destination      -can save plot
+    # width, height         -plot dimensions
 
     # Load in packages
     require(ggplot2)
@@ -190,7 +191,7 @@ base_grid_plot <- function(grid, island_outline, stations = NA,
     }
 
     if (!is.na(plot_destination)) {
-        ggsave(plot_destination, ireland_plot)
+        ggsave(plot_destination, ireland_plot, width = width, height = height)
     }
 
     ireland_plot
