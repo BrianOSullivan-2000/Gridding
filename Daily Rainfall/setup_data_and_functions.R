@@ -3,6 +3,8 @@
 
 rm(list = ls())
 
+library(dplyr)
+
 ## Station geodata and LTAs
 station_geodata <- read.csv(
     "Data/General/station_geodata.csv"
@@ -12,6 +14,11 @@ station_LTAs_6190 <- read.csv(
 )
 station_LTAs_9120 <- read.csv(
     "Data/General/LTAs/Rainfall/LTAs_Rainfall_stations_1991-2020.csv"
+)
+
+## Experimental daily LTAs (Developed by Barry Coonan)
+station_LTAs_9120_daily <- read.csv(
+    "Data/General/LTAs/Rainfall/station_rainfall_daily_9120norm.csv"
 )
 
 
@@ -46,7 +53,7 @@ rain_data <- list(
     lapply(\(data) {
         data |>
             left_join(station_geodata, by = "stno") |>
-            left_join(station_LTAs_9120, by = "stno") |>
+            left_join(station_LTAs_9120_daily, by = "stno") |>
             mutate(predicted_rain = NA)
     })
 
@@ -54,7 +61,6 @@ dates <- rain_data$train |>
     group_by(year, month, day) |>
     dplyr::select(year, month, day) |>
     slice(1)
-
 
 source("visualisation/base_grid_plot.R")
 source("visualisation/prediction_plot.R")

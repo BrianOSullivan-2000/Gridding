@@ -587,3 +587,147 @@ rainfall <- rainfall |>
 #     ),
 #     row.names = FALSE
 # )
+
+# %%
+
+## Barry put together some nice daily averages derived from the monthly ones
+## for stations. We can use these instead of the monthly LTAs when doing
+## daily gridding. There are a few stations not included, that we'll have
+## to get first, as well as the grid values
+
+## Load in the two functions
+source("utilities/grid_to_stn_multiple_cols.R")
+source("utilities/month_lta_to_day_lta.R")
+
+station_geodata <- read.csv("Data/General/station_geodata.csv")
+rain_data <- read.csv(
+    "Data/Daily_Rainfall/daily_rain_ROI_NI_2016-2025.csv"
+) |>
+    left_join(station_geodata, by = "stno") |>
+    group_by(stno) |>
+    slice(1) |>
+    dplyr::select(stno, east, north)
+
+station_LTAs_9120 <- read.csv(
+    "Data/General/LTAs/Rainfall/LTAs_Rainfall_stations_1991-2020.csv"
+)
+station_LTAs_9120_daily <- read.csv(
+    "Data/General/LTAs/Rainfall/station_rainfall_daily_9120norm.csv"
+)
+
+missing_daily_LTA_stnos <- rain_data |>
+    filter(!(stno %in% station_LTAs_9120_daily$stno)) |>
+    dplyr::select(stno, east, north) |>
+    left_join(
+        station_LTAs_9120, by = "stno",
+        suffix = c("", ".y")
+    ) |>
+    dplyr::select(-Ann, -spring, -summer, -autumn, -winter)
+
+paramnorm <- missing_daily_LTA_stnos
+parameter <- "rain"
+yearis <- 2025
+
+daily_normals <- month_lta_to_day_lta(
+    paramnorm, parameter, yearis
+)
+
+## Format table to fit previous LTAs
+station_columns <- setdiff(
+    names(daily_normals),
+    c("date", "month", "year", "day_num")
+)
+daily_normals <- as.data.frame(
+    t(as.matrix(daily_normals[, station_columns]))
+)
+daily_normals <- cbind(
+    stno = as.integer(sub("^stn_", "", station_columns)),
+    daily_normals
+)
+colnames(daily_normals)[-1] <- paste0(
+    "day_", seq_along(daily_normals)[-1]
+)
+
+# write.csv(
+#     bind_rows(
+#         station_LTAs_9120_daily,
+#         daily_normals
+#     ) |>
+#         arrange(stno),
+#     file = paste0(
+#         "Data/General/LTAs/Rainfall/",
+#         "station_rainfall_daily_9120norm.csv"
+#     )
+# )
+
+## I also want to do it for the grid (note this takes a while)
+
+LTAs_9120 <- read.csv(
+    paste0(
+        "Data/General/LTAs/Rainfall/",
+        "LTAs_Rainfall_grid_1991-2020.csv"
+    )
+) |>
+    dplyr::select(east, north, starts_with("m_")) |>
+    mutate(stno = row_number()) |>
+    dplyr::select(stno, east, north, starts_with("m_"))
+
+batch_size <- 800
+batch_directory <- "Data/General/LTAs/Rainfall/Batch"
+dir.create(batch_directory, recursive = TRUE, showWarnings = FALSE)
+
+batch_starts <- seq(1, nrow(LTAs_9120), by = batch_size)
+batch_count <- length(batch_starts)
+
+for (batch_number in seq_along(batch_starts)) {
+    batch_rows <- seq(
+        batch_starts[batch_number],
+        min(batch_starts[batch_number] + batch_size - 1, nrow(LTAs_9120))
+    )
+
+    batch_grid <- LTAs_9120[batch_rows, ]
+
+    paramnorm <- batch_grid
+    daily_LTA_grid_batch <- month_lta_to_day_lta(
+        paramnorm, parameter, yearis
+    )
+
+    station_columns <- setdiff(
+        names(daily_LTA_grid_batch),
+        c("date", "month", "year", "day_num")
+    )
+
+    daily_LTA_grid_batch <- as.data.frame(
+        t(as.matrix(daily_LTA_grid_batch[, station_columns]))
+    )
+
+    daily_LTA_grid_batch <- cbind(
+        east = batch_grid$east,
+        north = batch_grid$north,
+        daily_LTA_grid_batch
+    )
+
+    day_numbers <- seq_len(nrow(daily_LTA_grid_batch))
+    colnames(daily_LTA_grid_batch)[-c(1, 2)] <- paste0(
+        "day_", day_numbers
+    )
+
+    batch_file <- file.path(
+        batch_directory,
+        sprintf("LTAs_Rainfall_daily_grid_batch_%03d.csv", batch_number)
+    )
+
+    write.csv(
+        daily_LTA_grid_batch,
+        file = batch_file,
+        row.names = FALSE
+    )
+
+    cat(sprintf(
+        "Saved batch %d/%d: %d grid points to %s\n",
+        batch_number,
+        batch_count,
+        nrow(daily_LTA_grid_batch),
+        batch_file
+    ))
+}

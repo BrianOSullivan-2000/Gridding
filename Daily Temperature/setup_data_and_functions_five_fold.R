@@ -186,6 +186,9 @@ get_temperature_data <- function(
         )
 
         if (!is.null(date_indices)) {
+            prepared_temperature_data$train <-
+                prepared_temperature_data$train |>
+                semi_join(selected_dates, by = c("year", "month", "day"))
             prepared_temperature_data$test <-
                 prepared_temperature_data$test |>
                 semi_join(selected_dates, by = c("year", "month", "day"))
@@ -323,4 +326,4 @@ cat(
     last_update, "\n"
 )
 
-save.image(file = "Data/Daily_Temperature/train_test_five_fold_2025.RData")
+# save.image(file = "Data/Daily_Temperature/train_test_five_fold_2025.RData")

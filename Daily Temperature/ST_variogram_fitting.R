@@ -81,13 +81,13 @@ fit_ST_variograms <- function(df, ...) {
                 spatial_vgm_model = spatial_vgm_model,
                 temporal_vgm_model = temporal_vgm_model,
                 joint_vgm_model = joint_vgm_model,
+
+                flex_fit = TRUE,
                 # s_pars = s_pars, t_pars = t_pars, j_pars = j_pars,
 
                 parscales = parscales,
                 lower_limits = lower_limits, upper_limits = upper_limits,
                 maxit = maxit,
-
-                flex_fit = TRUE,
 
                 vgm_progress = vgm_progress, plot_vgm = plot_vgm,
                 return_emp_vgm = return_emp_vgm, no_fit = no_fit,

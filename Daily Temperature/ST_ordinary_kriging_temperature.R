@@ -175,39 +175,38 @@ vgm_model <- "sumMetric"
 spatial_vgm_model <- "Sph"
 s_pars <- c(1, 500000, 0.1)
 temporal_vgm_model <- "Mat"
-t_pars <- c(20, 4, 0, 1)
+t_pars <- c(50, 7, 0, 1.5)
 joint_vgm_model <- "Exp"
 j_pars <- c(1, 200000, 0, 0.5)
 
-stAni <- 10000
+stAni <- 300000
 
 parscales <- c(
     0.5, 10000, 0.1,
     0.5, 1, 0.1,
     0.5, 10000, 0.1,
-    5000
+    50000
 )
 lower_limits <- c(
-    0.1, 5000, 0,
-    0.1, 0.7, 0,
-    0.1, 5000, 0,
-    5000
+    0.01, 1000, 0,
+    0.01, 0.3, 0,
+    0.01, 1000, 0,
+    100
 )
 upper_limits <- c(
-    10, 500000, 1,
-    30, 20, 1,
-    10, 500000, 1,
-    500000
+    50, 2000000, 5,
+    200, 500, 5,
+    50, 2000000, 5,
+    5000000
 )
 
-maxit <- 400
-vgm_progress <- TRUE
-plot_vgm <- TRUE
+maxit <- 200
+vgm_progress <- FALSE
+plot_vgm <- FALSE
 return_emp_vgm <- FALSE
 no_fit <- FALSE
 
-fit.method <- 6
-
+fit.method <- 10
 daily_window <- 7
 
 ## Prediction function - To save lines of code!
@@ -233,13 +232,13 @@ predict_temperature <- function(train_data, test_data, ...) {
             spatial_vgm_model = spatial_vgm_model,
             temporal_vgm_model = temporal_vgm_model,
             joint_vgm_model = joint_vgm_model,
-            s_pars = s_pars, t_pars = t_pars, j_pars = j_pars,
+
+            flex_fit = TRUE,
+            # s_pars = s_pars, t_pars = t_pars, j_pars = j_pars,
 
             parscales = parscales,
             lower_limits = lower_limits, upper_limits = upper_limits,
             maxit = maxit,
-
-            flex_fit = TRUE,
 
             vgm_progress = vgm_progress, plot_vgm = plot_vgm,
             return_emp_vgm = return_emp_vgm, no_fit = no_fit,
@@ -257,31 +256,93 @@ predict_temperature <- function(train_data, test_data, ...) {
 
 ## Validation
 
+checkpoint_data <- temperature_data |>
+    dplyr::select(
+        year, month, day, fold, maxt, predicted_maxt, mint, predicted_mint
+    )
+
 for (fold_idx in seq_along(unique(temperature_data$fold))) {
 
     print(paste0("Starting Fold ", fold_idx))
     fold_time <- Sys.time()
 
-    prepared_temperature_data <-
-        get_temperature_data(
-            temperature_data,
-            current_fold = fold_idx
+    for (date_index in seq_len(nrow(dates))) {
+
+        date_time <- Sys.time()
+
+        current_day <- dates[date_index, ]$day
+        current_month <- dates[date_index, ]$month
+        current_year <- dates[date_index, ]$year
+
+        date_indices <- (date_index - daily_window):(date_index + daily_window)
+        date_indices <- date_indices[
+            date_indices >= 1 & date_indices <= 365
+        ]
+
+        prepared_temperature_data <-
+            get_temperature_data(
+                temperature_data,
+                dates = dates,
+                date_indices = date_indices,
+                current_fold = fold_idx
+            )
+
+        prepared_temperature_data$test <-
+            prepared_temperature_data$test |>
+            filter(
+                year == current_year,
+                month == current_month,
+                day == current_day
+            )
+        prepared_temperature_data$test <- bind_rows(
+            prepared_temperature_data$test,
+            prepared_temperature_data$test[1, ]
+        )
+        prepared_temperature_data$test[
+            nrow(prepared_temperature_data$test),
+        ]$t <- prepared_temperature_data$test[
+            nrow(prepared_temperature_data$test),
+        ]$t + 1
+
+        y_hat <- predict_temperature(
+            prepared_temperature_data$train,
+            prepared_temperature_data$test
+        )
+        y_hat_maxt <- y_hat$y_hat_maxt[-nrow(prepared_temperature_data$test)]
+        y_hat_mint <- y_hat$y_hat_mint[-nrow(prepared_temperature_data$test)]
+
+        temperature_data <-
+            update_predictions(
+                temperature_data,
+                y_hat_maxt,
+                y_hat_mint,
+                current_fold = fold_idx,
+                dates = dates,
+                date_indices = date_index
+            )
+
+        print(
+            paste0(
+                date_index, "    ",
+                current_day, "-",
+                current_month, "-",
+                current_year, " in ",
+                Sys.time() - date_time
+            )
         )
 
-    y_hat <- predict_temperature(
-        prepared_temperature_data$train,
-        prepared_temperature_data$test
-    )
-    y_hat_maxt <- y_hat$y_maxt
-    y_hat_mint <- y_hat$y_mint
-
-    temperature_data <-
-        update_predictions(
-            temperature_data,
-            y_hat_maxt,
-            y_hat_mint,
-            current_fold = fold_idx
+        checkpoint_data$predicted_maxt <-
+            temperature_data$predicted_maxt
+        checkpoint_data$predicted_mint <-
+            temperature_data$predicted_mint
+        write.csv(
+            checkpoint_data,
+            file = paste0(
+                "Results/Daily_Temperature/",
+                "train_test_five_fold_2025/ST_OK_summetric_checkpoint.csv"
+            )
         )
+    }
 
     print(paste0(
         "Fold ", fold_idx, " completed in ",
@@ -289,15 +350,28 @@ for (fold_idx in seq_along(unique(temperature_data$fold))) {
     ))
 }
 
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "ST Ordinary Kriging Sum-Metric",
+        temperature_data |>
+            as.data.frame()
+    )
+print(metrics_table)
+
 # write.csv(
 #     metrics_table,
-#     "Results/Daily_Temperature/train_test_five_fold_2025/ST_OK_separable.csv",
+#     "Results/Daily_Temperature/train_test_five_fold_2025/ST_OK_summetric.csv",
 #     row.names = FALSE
 # )
 
 # %%
 
+times <- c()
+
 for (date_index in seq_len(nrow(dates))) {
+
+    grid_time <- Sys.time()
 
     current_day <- dates[date_index, ]$day
     current_month <- dates[date_index, ]$month
@@ -351,11 +425,13 @@ for (date_index in seq_len(nrow(dates))) {
             ),
         plot_destination = paste0(
             "Figures/Daily_Temperature/five_fold_tests/",
-            "ST_OK_separable/ST_OK_separable_fit_well_",
+            "ST_OK_Sum-Metric/ST_OK_Sum-Metric_",
             current_year, "_",
             sprintf("%02d", current_month), "_",
             sprintf("%02d", current_day),
             ".jpg"
         )
     )
+
+    times <- c(times, Sys.time() - grid_time)
 }
