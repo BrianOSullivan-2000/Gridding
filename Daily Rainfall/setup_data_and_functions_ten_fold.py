@@ -14,31 +14,22 @@ if get_ipython is not None:
 
 import warnings
 
+import dill
 import numpy as np
 import pandas as pd
 
 from utilities.metric_functions import ME10, R2, Wet_Day_Bias, mae, me, rmse
 
-## Station geodata and LTAs
-station_geodata = pd.read_csv("Data/General/station_geodata.csv")
-station_LTAs_6190 = pd.read_csv(
-    "Data/General/LTAs/Rainfall/LTAs_Rainfall_stations_1961-1990.csv"
-)
-station_LTAs_9120 = pd.read_csv(
-    "Data/General/LTAs/Rainfall/LTAs_Rainfall_stations_1991-2020.csv"
-)
-
-## Grid geodata and LTAs
-grid_geodata = pd.read_csv("Data/General/grid_geodata.csv")
-grid_LTAs_6190 = pd.read_csv(
-    "Data/General/LTAs/Rainfall/LTAs_Rainfall_grid_1961-1990.csv"
-)
-grid_LTAs_9120 = pd.read_csv(
-    "Data/General/LTAs/Rainfall/LTAs_Rainfall_grid_1991-2020.csv"
-)
-
-## Island Outline for plotting
-island_outline = pd.read_csv("Data/General/Irlcoast.csv")
+# Restore shared objects created by setup_data_and_functions.py.
+dill.load_session("Data/Daily_Rainfall/train_test_80_20_2016-2025.dill")
+session_objects = globals()
+station_geodata = session_objects["station_geodata"]
+station_LTAs_6190 = session_objects["station_LTAs_6190"]
+station_LTAs_9120 = session_objects["station_LTAs_9120"]
+grid_geodata = session_objects["grid_geodata"]
+grid_LTAs_6190 = session_objects["grid_LTAs_6190"]
+grid_LTAs_9120 = session_objects["grid_LTAs_9120"]
+island_outline = session_objects["island_outline"]
 
 ## Ten-fold cross-validation (2016-2025)
 rain_data = (
@@ -57,9 +48,8 @@ dates = (
 
 ## Template for metrics
 metrics_table = pd.DataFrame(
-    columns=["Name", "RMSE", "ME", "MAE", "R2", "ME10", "Wet_Day_Bias"]
+    columns=["Name", "RMSE", "ME", "MAE", "R2", "ME10"]
 )
-
 
 ## Function that prepares data for a given month and held-out fold
 def get_daily_rain_data(
@@ -95,7 +85,7 @@ def get_daily_rain_data(
         lambda row: row[f"m_{int(row['month'])}"],
         axis=1,
     )
-    selected_days["y"] = selected_days["rain"] / selected_days["LTA"]
+    selected_days["y"] = np.log1p(selected_days["rain"] / selected_days["LTA"])
 
     if experiment_type == "all_data":
         return selected_days
@@ -150,7 +140,7 @@ def update_daily_predictions(
         how="left",
         indicator=True,
         sort=False,
-        )["_merge"].eq("both").to_numpy()
+        )["_merge"].eq("both").to_numpy(copy=True)
     target_rows &= rain_data["fold"].to_numpy() == current_fold
 
     updated_rain_data = rain_data.copy()
@@ -214,3 +204,5 @@ def collect_metrics(metrics_table, name, rain_data):
         return new_row
 
     return pd.concat([metrics_table, new_row], ignore_index=True)
+
+# dill.dump_session("Data/Daily_Rainfall/train_test_ten_fold_2016-2025.dill")

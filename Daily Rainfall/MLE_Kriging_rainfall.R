@@ -27,7 +27,7 @@ f <- as.formula(
         "y ~",
         paste(
             "east", "north",
-            "points5",
+            # "points5",
             # "dist2c", "exp25k",
             sep = " + "
         )
@@ -55,7 +55,7 @@ for (date_index in seq_len(nrow(dates))) {
 
             init_pars = c(0.001, 0.0001, 150),
             lower = c(1e-8, 0, 10),
-            upper = c(0.05, 0.01, 500)
+            upper = c(0.5, 0.1, 1000)
         )$pred
 
     rain_data <- update_daily_predictions(
@@ -74,14 +74,14 @@ metrics_table <-
     )
 print(metrics_table)
 
-# write.csv(
-#     metrics_table,
-#     paste0(
-#         "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
-#         "RK_Exp_MLE_trend.csv"
-#     ),
-#     row.names = FALSE
-# )
+write.csv(
+    metrics_table,
+    paste0(
+        "Results/Daily_Rainfall/train_test_80_20_2016-2025/",
+        "RK_Exp_MLE_daily.csv"
+    ),
+    row.names = FALSE
+)
 
 # %%
 
@@ -120,13 +120,14 @@ for (date_index in seq_len(nrow(dates))) {
         )$pred
 
     grid_geodata$rain <-
-        expm1(y_hat) * grid_LTAs_9120[paste0("m_", current_month)]
+        expm1(y_hat) *
+        grid_LTAs_9120_daily[paste0("day_", current_day)]
 
     daily_rain_plot(
         grid_geodata,
         daily_rain_data,
         plot_destination = paste0(
-            "Figures/Daily_Rainfall/RK_Exp_MLE_trend/RK_Exp_MLE_trend_",
+            "Figures/Daily_Rainfall/RK_Exp_MLE_daily/RK_Exp_MLE_daily_",
             current_year, "_",
             sprintf("%02d", current_month), "_",
             sprintf("%02d", current_day),

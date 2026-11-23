@@ -209,4 +209,4 @@ def collect_metrics(metrics_table, name, rain_data):
 
     return pd.concat([metrics_table, new_row], ignore_index=True)
 
-dill.dump_session("Data/Monthly_Rainfall/train_test_ten_fold_2016-2025.dill")
+# dill.dump_session("Data/Monthly_Rainfall/train_test_ten_fold_2016-2025.dill")

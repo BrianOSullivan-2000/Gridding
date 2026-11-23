@@ -679,7 +679,7 @@ dir.create(batch_directory, recursive = TRUE, showWarnings = FALSE)
 batch_starts <- seq(1, nrow(LTAs_9120), by = batch_size)
 batch_count <- length(batch_starts)
 
-for (batch_number in seq_along(batch_starts)) {
+for (batch_number in 1:106) {
     batch_rows <- seq(
         batch_starts[batch_number],
         min(batch_starts[batch_number] + batch_size - 1, nrow(LTAs_9120))
@@ -707,7 +707,7 @@ for (batch_number in seq_along(batch_starts)) {
         daily_LTA_grid_batch
     )
 
-    day_numbers <- seq_len(nrow(daily_LTA_grid_batch))
+    day_numbers <- seq_len(ncol(daily_LTA_grid_batch) - 2)
     colnames(daily_LTA_grid_batch)[-c(1, 2)] <- paste0(
         "day_", day_numbers
     )
@@ -730,4 +730,64 @@ for (batch_number in seq_along(batch_starts)) {
         nrow(daily_LTA_grid_batch),
         batch_file
     ))
+}
+
+batch_number <- 1
+batch_directory <- "Data/General/LTAs/Rainfall/Batch"
+batch_file <- file.path(
+    batch_directory,
+    sprintf("LTAs_Rainfall_daily_grid_batch_%03d.csv", batch_number)
+)
+grid_batch <- read.csv(batch_file)
+gridded_daily_normals <- grid_batch
+
+for (batch_number in 2:length(list.files(batch_directory))) {
+
+    batch_file <- file.path(
+        batch_directory,
+        sprintf("LTAs_Rainfall_daily_grid_batch_%03d.csv", batch_number)
+    )
+    grid_batch <- read.csv(batch_file)
+
+    gridded_daily_normals <- bind_rows(
+        gridded_daily_normals,
+        grid_batch
+    )
+
+    print(batch_number)
+}
+
+# write.csv(
+#     gridded_daily_normals,
+#     file = paste0(
+#         "Data/General/LTAs/Rainfall/",
+#         "grid_rainfall_daily_9120norm.csv"
+#     ),
+#     row.names = FALSE
+# )
+
+## Also save each day separately (keeps the files small)
+
+gridded_daily_normals <- read.csv(
+    paste0(
+        "Data/General/LTAs/Rainfall/",
+        "grid_rainfall_daily_9120norm.csv"
+    )
+)
+
+for (day_of_year in 1:365) {
+
+    day_of_year_grid <- gridded_daily_normals[
+        c("east", "north", paste0("day_", day_of_year))
+    ]
+    write.csv(
+        day_of_year_grid,
+        file = paste0(
+            "Data/General/LTAs/Rainfall/Daily_Averages/",
+            "grid_rainfall_9120_day", day_of_year, ".csv"
+        )
+        row.names = FALSE
+    )
+
+    print(day_of_year)
 }

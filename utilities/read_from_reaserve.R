@@ -14,7 +14,7 @@ read_from_reaserve <- function(var = "instant_uv_sfc_10", lead_time = "24",
 
     # var                   -variable of interest. I'm not fully sure about the
     #                       naming convention, but I found this link:
-    # opendatadocs.dmi.govcloud.dk/Data/Forecast_Data_Weather_Model_HARMONIE
+    # www.dmi.dk/friedata/dokumentation/data/forecast-data-weather-model-harmonie
     #                       Note that I have not confirmed these are correct
 
     # year/month/day/hour   -specified time for model output

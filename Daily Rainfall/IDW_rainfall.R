@@ -190,3 +190,47 @@ print(
         mean(times)
     )
 )
+
+# %%
+
+## Check using daily normalization
+idp <- 2
+nmax <- 15
+
+for (date_index in seq_len(nrow(dates))) {
+
+    daily_rain_data <- get_daily_rain_data(
+        rain_data, dates, date_index
+    )
+
+    y_hat <-
+        IDW(
+            daily_rain_data$train$y,
+            daily_rain_data$train[c("east", "north")],
+            daily_rain_data$test[c("east", "north")],
+            idp = idp,
+            nmax = nmax
+        )$var1.pred
+
+    rain_data <- update_daily_predictions(
+        rain_data, y_hat, dates, date_index
+    )
+
+    print(date_index)
+}
+
+metrics_table <-
+    collect_metrics(
+        metrics_table = NULL,
+        "IDW Daily Normals",
+        rain_data$test$rain,
+        rain_data$test$predicted_rain
+    )
+
+print(metrics_table)
+
+write.csv(
+    metrics_table,
+    "Results/Daily_Rainfall/train_test_80_20_2016-2025/IDW_daily.csv",
+    row.names = FALSE
+)

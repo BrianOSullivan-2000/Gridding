@@ -16,11 +16,6 @@ station_LTAs_9120 <- read.csv(
     "Data/General/LTAs/Rainfall/LTAs_Rainfall_stations_1991-2020.csv"
 )
 
-## Experimental daily LTAs (Developed by Barry Coonan)
-station_LTAs_9120_daily <- read.csv(
-    "Data/General/LTAs/Rainfall/station_rainfall_daily_9120norm.csv"
-)
-
 
 ## Grid geodata and LTAs
 grid_geodata <- read.csv(
@@ -32,6 +27,14 @@ grid_LTAs_6190 <- read.csv(
 grid_LTAs_9120 <- read.csv(
     "Data/General/LTAs/Rainfall/LTAs_Rainfall_grid_1991-2020.csv"
 )
+
+## Experimental daily LTAs (Developed by Barry Coonan)
+station_LTAs_9120_daily <- read.csv(
+    "Data/General/LTAs/Rainfall/station_rainfall_daily_9120norm.csv"
+)
+# grid_LTAs_9120_daily <- read.csv(
+#     "Data/General/LTAs/Rainfall/grid_rainfall_daily_9120norm.csv"
+# )
 
 
 ## Island Outline for plotting
@@ -116,11 +119,16 @@ get_daily_rain_data <- function(
     experiment_type = c("train_test", "all_data")
 ) {
 
+    require(lubridate)
+
     experiment_type <- match.arg(experiment_type)
 
     current_day <- dates[date_index, ]$day
     current_month <- dates[date_index, ]$month
     current_year <- dates[date_index, ]$year
+    day_of_year <- yday(make_date(
+        current_year, current_month, current_day
+    ))
 
     join_data <- function(data) {
         data <- data |>
@@ -130,7 +138,7 @@ get_daily_rain_data <- function(
                 year == current_year
             ) |>
             mutate(
-                LTA = .data[[paste0("m_", current_month)]],
+                LTA = .data[[paste0("day_", day_of_year)]],
                 normalized_rain = rain / LTA,
                 y = log1p(normalized_rain)
             )
@@ -210,6 +218,21 @@ daily_rain_plot <- function(grid, daily_rain_data, plot_destination) {
         plot_destination = plot_destination
     )
 }
+
+
+
+source("utilities/read_from_reaserve.R")
+
+time_to_get <- Sys.time()
+
+forecast_data <- read_from_reaserve(
+    var = "instant_uv_sfc_10",
+    lead_time = "24",
+    year = "2024", month = "11", day = "01", hour = "00"
+)
+
+print(Sys.time() - time_to_get)
+
 
 # last_update <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
 
